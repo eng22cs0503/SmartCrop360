@@ -1,0 +1,2630 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartCrop360</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════
+   THEME TOKENS
+═══════════════════════════════════════ */
+:root,[data-theme="dark"]{
+  --bg:#0f1a0f; --sidebar:#0a120a; --panel:rgba(22,38,22,0.85);
+  --border:rgba(110,203,99,0.15); --border-hover:rgba(110,203,99,0.32);
+  --leaf:#6ecb63; --gold:#c9a84c; --sky:#7ecfe0; --rust:#c4673a;
+  --cream:#eee8d8; --muted:rgba(238,232,216,0.45); --muted2:rgba(238,232,216,0.18);
+  --glow:rgba(110,203,99,0.18); --glow2:rgba(110,203,99,0.35);
+  --btn-text:#0f1a0f;
+  --blob1:rgba(40,80,30,0.5); --blob2:rgba(20,50,20,0.6); --blob3:rgba(201,168,76,0.06);
+  --danger-bg:rgba(220,60,60,0.1); --danger-border:#e05555; --danger-text:#f87171;
+  --warn-bg:rgba(220,160,40,0.1); --warn-border:#c9a84c; --warn-text:#fbbf24;
+  --ok-bg:rgba(110,203,99,0.08); --ok-border:#6ecb63; --ok-text:#6ecb63;
+  --input-bg:rgba(238,232,216,0.05); --input-border:rgba(238,232,216,0.12);
+  --rec-bg:rgba(22,38,22,0.6); --setting-bg:rgba(22,38,22,0.6);
+  --chart-color:rgba(238,232,216,0.45); --chart-grid:rgba(238,232,216,0.06);
+  --tog-bg:rgba(238,232,216,0.1); --tog-dot:rgba(238,232,216,0.45);
+}
+[data-theme="light"]{
+  --bg:#f0fdf4; --sidebar:#14532d; --panel:rgba(255,255,255,0.88);
+  --border:rgba(20,83,45,0.15); --border-hover:rgba(20,83,45,0.35);
+  --leaf:#15803d; --gold:#b45309; --sky:#0369a1; --rust:#c2410c;
+  --cream:#1a2e1a; --muted:rgba(26,46,26,0.55); --muted2:rgba(26,46,26,0.28);
+  --glow:rgba(21,128,61,0.15); --glow2:rgba(21,128,61,0.3);
+  --btn-text:#fff;
+  --blob1:rgba(187,247,208,0.6); --blob2:rgba(220,252,231,0.7); --blob3:rgba(253,230,138,0.3);
+  --danger-bg:rgba(254,226,226,0.8); --danger-border:#ef4444; --danger-text:#b91c1c;
+  --warn-bg:rgba(254,249,195,0.8); --warn-border:#f59e0b; --warn-text:#92400e;
+  --ok-bg:rgba(220,252,231,0.8); --ok-border:#22c55e; --ok-text:#14532d;
+  --input-bg:rgba(20,83,45,0.05); --input-border:rgba(20,83,45,0.18);
+  --rec-bg:rgba(240,253,244,0.9); --setting-bg:rgba(240,253,244,0.9);
+  --chart-color:rgba(26,46,26,0.55); --chart-grid:rgba(26,46,26,0.08);
+  --tog-bg:rgba(26,46,26,0.12); --tog-dot:rgba(26,46,26,0.35);
+}
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--cream);min-height:100vh;overflow-x:hidden;transition:background 0.4s,color 0.4s;}
+
+body::before{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 60% 50% at 8% 15%,var(--blob1) 0%,transparent 65%),
+             radial-gradient(ellipse 50% 45% at 92% 85%,var(--blob2) 0%,transparent 60%),
+             radial-gradient(ellipse 35% 30% at 55% 5%,var(--blob3) 0%,transparent 55%);
+  transition:background 0.4s;
+}
+body::after{
+  content:'';position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.022;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size:200px;
+}
+.blob{position:fixed;z-index:0;pointer-events:none;border-radius:50%;filter:blur(80px);opacity:.07;animation:drift 14s ease-in-out infinite alternate;}
+.ba{width:500px;height:370px;background:var(--leaf);top:-110px;right:-70px;}
+.bb{width:330px;height:250px;background:var(--gold);bottom:-70px;left:-50px;animation-delay:-6s;}
+.bc{width:250px;height:190px;background:var(--sky);top:50%;left:42%;animation-delay:-3s;}
+@keyframes drift{from{transform:translate(0,0) rotate(-4deg) scale(1);}to{transform:translate(28px,18px) rotate(4deg) scale(1.05);}}
+
+/* ── LAYOUT ── */
+.shell{display:flex;min-height:100vh;position:relative;z-index:1;}
+
+/* ── SIDEBAR ── */
+.sidebar{
+  width:248px;min-height:100vh;
+  background:var(--sidebar);
+  backdrop-filter:blur(28px);
+  border-right:1px solid var(--border);
+  padding:28px 14px;
+  display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;bottom:0;z-index:200;
+  transition:transform 0.32s cubic-bezier(.4,0,.2,1),background 0.4s,border-color 0.4s;
+}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:32px;padding-left:6px;}
+.logo-icon{width:34px;height:34px;background:var(--leaf);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:.95rem;color:var(--btn-text);box-shadow:0 0 18px var(--glow);transition:background 0.4s;}
+.logo-text{font-family:'Playfair Display',serif;font-size:1.18rem;color:var(--cream);letter-spacing:-.01em;transition:color 0.4s;}
+.logo-text span{color:var(--leaf);transition:color 0.4s;}
+.nav{list-style:none;display:flex;flex-direction:column;gap:2px;}
+.nav li a{display:flex;align-items:center;gap:11px;padding:10px 13px;border-radius:10px;color:var(--muted);text-decoration:none;font-size:.86rem;font-weight:500;transition:all 0.25s;cursor:pointer;}
+.nav li a i{width:16px;text-align:center;font-size:.8rem;}
+.nav li a:hover{background:rgba(110,203,99,0.09);color:var(--cream);transform:translateX(3px);}
+[data-theme="light"] .nav li a:hover{background:rgba(255,255,255,0.15);}
+.nav li a.on{background:rgba(110,203,99,0.16);color:var(--leaf);font-weight:600;}
+[data-theme="light"] .nav li a.on{background:rgba(255,255,255,0.22);color:#86efac;}
+.sidebar-foot{margin-top:auto;padding-top:18px;border-top:1px solid var(--border);font-size:.72rem;color:var(--muted2);line-height:1.7;transition:border-color 0.4s;}
+
+/* Theme toggle in sidebar */
+.theme-toggle{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--input-bg);border:1px solid var(--border);
+  border-radius:10px;padding:10px 13px;margin-bottom:6px;
+  cursor:pointer;transition:all 0.25s;
+}
+.theme-toggle:hover{border-color:var(--border-hover);}
+.theme-toggle-label{font-size:.82rem;font-weight:600;color:var(--cream);display:flex;align-items:center;gap:8px;}
+.theme-pill{
+  display:flex;background:var(--tog-bg);border-radius:20px;padding:3px;gap:2px;
+  border:1px solid var(--border);
+}
+.theme-opt{
+  padding:4px 10px;border-radius:16px;font-size:.72rem;font-weight:700;
+  cursor:pointer;transition:all 0.22s;color:var(--muted);
+}
+.theme-opt.active{background:var(--leaf);color:var(--btn-text);box-shadow:0 2px 8px var(--glow);}
+
+.burger{display:none;position:fixed;top:14px;left:14px;z-index:300;background:var(--sidebar);border:1px solid var(--border);color:var(--leaf);border-radius:10px;width:40px;height:40px;align-items:center;justify-content:center;font-size:1rem;cursor:pointer;transition:background 0.4s;}
+
+/* ── MAIN ── */
+.main{margin-left:248px;flex:1;padding:34px 38px;min-height:100vh;}
+
+/* ── PAGES ── */
+.page{display:none;animation:rise .34s ease both;}
+.page.active{display:block;}
+@keyframes rise{from{opacity:0;transform:translateY(16px);}to{opacity:1;transform:translateY(0);}}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:28px;padding-bottom:20px;border-bottom:1px solid var(--border);transition:border-color 0.4s;}
+.page-title{font-family:'Playfair Display',serif;font-size:1.9rem;color:var(--cream);letter-spacing:-.02em;line-height:1;transition:color 0.4s;}
+.page-sub{font-size:.8rem;color:var(--muted);margin-top:5px;transition:color 0.4s;}
+.topbar-actions{display:flex;gap:10px;}
+
+/* ── CARD ── */
+.card{
+  background:var(--panel);backdrop-filter:blur(20px);
+  border:1px solid var(--border);border-radius:18px;padding:22px;
+  position:relative;overflow:hidden;
+  transition:transform 0.32s cubic-bezier(.4,0,.2,1),border-color 0.3s,box-shadow 0.3s,background 0.4s;
+}
+.card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(110,203,99,.03) 0%,transparent 55%);pointer-events:none;transition:opacity 0.3s;}
+.card:hover{transform:translateY(-4px);border-color:var(--border-hover);box-shadow:0 18px 48px rgba(0,0,0,.35),0 0 0 1px rgba(110,203,99,.1);}
+[data-theme="light"] .card:hover{box-shadow:0 18px 48px rgba(20,83,45,.12);}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:10px;border:none;font-family:'DM Sans',sans-serif;font-weight:600;font-size:.84rem;cursor:pointer;transition:all .2s;}
+.btn-primary{background:var(--leaf);color:var(--btn-text);box-shadow:0 4px 16px var(--glow);}
+.btn-primary:hover{filter:brightness(1.12);transform:translateY(-2px);box-shadow:0 8px 24px var(--glow2);}
+.btn-ghost{background:transparent;border:1.5px solid var(--border-hover);color:var(--leaf);}
+.btn-ghost:hover{background:var(--glow);transform:translateY(-2px);}
+.btn-gold{background:var(--gold);color:#fff;box-shadow:0 4px 14px rgba(201,168,76,.25);}
+.btn-gold:hover{filter:brightness(1.1);transform:translateY(-2px);}
+.btn-danger{background:var(--rust);color:#fff;}
+.btn-danger:hover{filter:brightness(1.1);transform:translateY(-2px);}
+.btn-sm{padding:6px 13px;font-size:.78rem;}
+
+/* ── STATS ── */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:15px;margin-bottom:22px;}
+.stat{background:var(--panel);border:1px solid var(--border);border-radius:18px;padding:20px 16px 15px;position:relative;overflow:hidden;transition:transform 0.3s,border-color 0.3s,background 0.4s;}
+.stat::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(90deg,var(--leaf),var(--gold));transform:scaleX(0);transform-origin:left;transition:transform .38s ease;}
+.stat:hover{transform:translateY(-5px);border-color:var(--border-hover);}
+.stat:hover::after{transform:scaleX(1);}
+.stat-icon{font-size:1.25rem;margin-bottom:11px;opacity:.7;}
+.stat-val{font-family:'Playfair Display',serif;font-size:2rem;color:var(--leaf);line-height:1;transition:color 0.4s;}
+.stat-label{font-size:.75rem;color:var(--muted);margin-top:5px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;}
+
+/* ── SECTION TITLE ── */
+.stitle{font-family:'Playfair Display',serif;font-size:1.05rem;color:var(--cream);margin-bottom:15px;display:flex;align-items:center;gap:8px;transition:color 0.4s;}
+.stitle i{color:var(--gold);font-size:.9rem;}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:6px;margin-bottom:22px;flex-wrap:wrap;}
+.tab{padding:8px 17px;border-radius:9px;background:var(--input-bg);border:1px solid var(--input-border);color:var(--muted);font-family:'DM Sans',sans-serif;font-weight:600;font-size:.82rem;cursor:pointer;transition:all .22s;}
+.tab.on{background:rgba(110,203,99,.16);border-color:rgba(110,203,99,.35);color:var(--leaf);}
+[data-theme="light"] .tab.on{background:rgba(21,128,61,.12);border-color:rgba(21,128,61,.3);}
+.tab:hover:not(.on){background:var(--glow);color:var(--cream);}
+
+/* ── ALERTS SCROLL ── */
+.scroll-x{display:flex;gap:15px;overflow-x:auto;padding-bottom:6px;}
+.scroll-x::-webkit-scrollbar{height:4px;}
+.scroll-x::-webkit-scrollbar-thumb{background:var(--glow2);border-radius:4px;}
+.apill{min-width:256px;flex-shrink:0;border-radius:13px;padding:15px 17px;border-left:3px solid;transition:transform .26s,box-shadow .26s;}
+.apill:hover{transform:translateY(-4px);box-shadow:0 10px 26px rgba(0,0,0,.25);}
+.apill-r{background:var(--danger-bg);border-color:var(--danger-border);}
+.apill-y{background:var(--warn-bg);border-color:var(--warn-border);}
+.apill-g{background:var(--ok-bg);border-color:var(--ok-border);}
+.apill-title{font-weight:700;font-size:.86rem;margin-bottom:4px;}
+.apill-r .apill-title{color:var(--danger-text);}
+.apill-y .apill-title{color:var(--warn-text);}
+.apill-g .apill-title{color:var(--ok-text);}
+.apill-msg{font-size:.81rem;color:var(--muted);}
+.apill-time{font-size:.72rem;color:var(--muted2);margin-top:5px;}
+
+/* ── CHAT ── */
+.chat-wrap{background:var(--panel);backdrop-filter:blur(20px);border:1px solid var(--border);border-radius:18px;display:flex;flex-direction:column;height:520px;overflow:hidden;transition:background 0.4s,border-color 0.4s;}
+.chat-head{background:var(--rec-bg);border-bottom:1px solid var(--border);padding:13px 18px;display:flex;align-items:center;gap:10px;transition:background 0.4s,border-color 0.4s;}
+.chat-head-name{font-weight:700;color:var(--leaf);font-size:.9rem;transition:color 0.4s;}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--leaf);margin-left:auto;box-shadow:0 0 6px var(--leaf);animation:blink 2s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:.35;}}
+.chat-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;}
+.chat-msgs::-webkit-scrollbar{width:4px;}
+.chat-msgs::-webkit-scrollbar-thumb{background:var(--glow2);border-radius:4px;}
+.msg{max-width:78%;padding:10px 14px;border-radius:14px;font-size:.87rem;line-height:1.55;animation:rise .2s ease both;}
+.msg-u{background:rgba(110,203,99,.18);color:var(--cream);align-self:flex-end;border-bottom-right-radius:4px;border:1px solid var(--glow2);}
+[data-theme="light"] .msg-u{background:rgba(21,128,61,.12);color:var(--cream);}
+.msg-a{background:var(--warn-bg);color:var(--cream);align-self:flex-start;border-bottom-left-radius:4px;border:1px solid var(--warn-border);}
+.msg-a.typing{opacity:.6;}
+.chat-foot{padding:12px 14px;background:var(--rec-bg);border-top:1px solid var(--border);display:flex;gap:10px;transition:background 0.4s,border-color 0.4s;}
+.chat-foot input{flex:1;background:var(--input-bg);border:1.5px solid var(--input-border);border-radius:9px;padding:10px 13px;color:var(--cream);font-family:'DM Sans',sans-serif;font-size:.87rem;outline:none;transition:border .2s,background 0.4s,color 0.4s;}
+.chat-foot input::placeholder{color:var(--muted2);}
+.chat-foot input:focus{border-color:var(--border-hover);}
+
+/* ── DISEASE ── */
+.d-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+.flabel{display:block;font-size:.73rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+input[type=file],select,textarea{width:100%;background:var(--input-bg);border:1.5px solid var(--input-border);border-radius:10px;padding:10px 12px;color:var(--cream);font-family:'DM Sans',sans-serif;font-size:.86rem;outline:none;transition:border .2s,background 0.4s,color 0.4s;margin-bottom:13px;}
+[data-theme="light"] input[type=file],
+[data-theme="light"] select,
+[data-theme="light"] textarea{color:var(--cream);}
+select option{background:var(--bg);}
+input[type=file]:focus,select:focus,textarea:focus{border-color:var(--border-hover);}
+textarea{resize:vertical;}
+.conf-wrap{background:var(--input-bg);height:12px;border-radius:6px;overflow:hidden;margin-top:7px;}
+#confidenceBar{background:linear-gradient(90deg,var(--leaf),var(--gold));height:100%;width:0%;border-radius:6px;transition:width .8s cubic-bezier(.4,0,.2,1);}
+.d-result{font-family:'Playfair Display',serif;font-size:1.55rem;color:var(--leaf);margin-top:5px;transition:color 0.4s;}
+.prev-box{min-height:220px;border:2px dashed var(--border);border-radius:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--input-bg);margin-top:10px;overflow:hidden;transition:border .3s,background 0.4s;}
+.prev-box:hover{border-color:var(--border-hover);}
+#preview{max-width:100%;max-height:280px;border-radius:10px;display:none;}
+
+/* ── MAP ── */
+#p-map .card.map-card { padding: 0; overflow: hidden; }
+#map {
+  height: clamp(340px, 55vh, 600px);
+  width: 100%;
+  border-radius: 13px;
+  z-index: 1;
+  display: block;
+}
+.map-legend-card { padding: 16px 20px; }
+.legend-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.pill { padding: 5px 13px; border-radius: 20px; font-size: .77rem; font-weight: 700; }
+.pill-r { background: var(--danger-bg); color: var(--danger-text); border: 1px solid var(--danger-border); }
+.pill-y { background: var(--warn-bg);   color: var(--warn-text);   border: 1px solid var(--warn-border); }
+.pill-g { background: var(--ok-bg);     color: var(--ok-text);     border: 1px solid var(--ok-border); }
+#mapFieldBtns { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 12px; }
+
+/* ── ANALYTICS ── */
+.a-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+
+/* ── RECOMMENDATIONS ── */
+.rec-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+.rec{display:flex;align-items:flex-start;gap:13px;background:var(--rec-bg);border:1px solid var(--border);border-radius:13px;padding:15px 17px;transition:transform 0.3s,border-color 0.3s,background 0.4s;}
+.rec:hover{transform:translateY(-4px);border-color:var(--border-hover);}
+.rec-ico{width:38px;height:38px;border-radius:9px;background:var(--glow);display:flex;align-items:center;justify-content:center;color:var(--leaf);font-size:.95rem;flex-shrink:0;}
+.rec-txt{font-size:.85rem;color:var(--cream);font-weight:500;line-height:1.5;}
+
+/* ── WEATHER ── */
+.w-row{display:grid;grid-template-columns:repeat(5,1fr);gap:13px;}
+.wc{text-align:center;background:var(--rec-bg);border:1px solid var(--border);border-radius:14px;padding:17px 8px;transition:transform 0.3s,border-color 0.3s,background 0.4s;}
+.wc:hover{transform:translateY(-5px);border-color:var(--border-hover);}
+.wc-day{font-size:.7rem;color:var(--muted);margin-bottom:9px;text-transform:uppercase;letter-spacing:.06em;font-weight:600;}
+.wc-icon{font-size:1.8rem;margin-bottom:7px;}
+.wc-temp{font-family:'Playfair Display',serif;font-size:1.4rem;color:var(--gold);transition:color 0.4s;}
+.wc-desc{font-size:.7rem;color:var(--muted);margin-top:4px;}
+
+/* ── SETTINGS ── */
+.s-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.s-row{display:flex;justify-content:space-between;align-items:center;background:var(--setting-bg);border:1px solid var(--border);border-radius:13px;padding:15px 18px;transition:border-color 0.3s,background 0.4s;}
+.s-row:hover{border-color:var(--border-hover);}
+.s-label{font-weight:600;font-size:.86rem;color:var(--cream);}
+.tog{display:flex;align-items:center;cursor:pointer;}
+.tog input{display:none;}
+.tog-t{width:44px;height:23px;background:var(--tog-bg);border-radius:50px;position:relative;transition:background .3s;border:1px solid var(--border);}
+.tog-t::before{content:'';position:absolute;top:3px;left:3px;width:17px;height:17px;background:var(--tog-dot);border-radius:50%;transition:transform .3s,background .3s;}
+.tog input:checked+.tog-t{background:rgba(110,203,99,.28);border-color:rgba(110,203,99,.4);}
+.tog input:checked+.tog-t::before{transform:translateX(21px);background:var(--leaf);}
+input[type=color]{width:100%;height:40px;border-radius:9px;cursor:pointer;padding:4px;margin-bottom:0;background:var(--input-bg);border:1.5px solid var(--input-border);}
+
+/* ── ALERTS FULL PAGE ── */
+.alert-full{border-radius:14px;padding:18px 20px;border-left:4px solid;margin-bottom:0;transition:transform .26s,box-shadow .26s;}
+.alert-full:hover{transform:translateY(-3px);box-shadow:0 10px 28px rgba(0,0,0,.2);}
+.alert-full-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+.alert-full-title{font-weight:700;font-size:.9rem;}
+.alert-full-r{background:var(--danger-bg);border-color:var(--danger-border);}
+.alert-full-r .alert-full-title{color:var(--danger-text);}
+.alert-full-y{background:var(--warn-bg);border-color:var(--warn-border);}
+.alert-full-y .alert-full-title{color:var(--warn-text);}
+.alert-full-g{background:var(--ok-bg);border-color:var(--ok-border);}
+.alert-full-g .alert-full-title{color:var(--ok-text);}
+.alert-msg{font-size:.83rem;color:var(--muted);}
+.alert-meta{display:flex;gap:10px;margin-top:8px;flex-wrap:wrap;}
+.badge{display:inline-block;padding:2px 10px;border-radius:12px;font-size:.72rem;font-weight:700;}
+.badge-r{background:var(--danger-bg);color:var(--danger-text);}
+.badge-y{background:var(--warn-bg);color:var(--warn-text);}
+.badge-g{background:var(--ok-bg);color:var(--ok-text);}
+
+/* ── NOTIFICATION TOAST ── */
+#toast{position:fixed;bottom:28px;right:28px;z-index:9999;display:flex;flex-direction:column;gap:10px;pointer-events:none;}
+.toast-item{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--leaf);border-radius:12px;padding:12px 16px;font-size:.84rem;min-width:240px;animation:toastIn .3s ease;box-shadow:0 8px 28px rgba(0,0,0,.3);pointer-events:all;display:flex;align-items:flex-start;gap:10px;backdrop-filter:blur(20px);}
+.toast-item i{color:var(--leaf);margin-top:1px;flex-shrink:0;}
+.toast-item.warn{border-left-color:var(--gold);}
+.toast-item.warn i{color:var(--gold);}
+.toast-item.err{border-left-color:var(--rust);}
+.toast-item.err i{color:var(--rust);}
+@keyframes toastIn{from{opacity:0;transform:translateX(30px);}to{opacity:1;transform:translateX(0);}}
+@keyframes toastOut{from{opacity:1;transform:translateX(0);}to{opacity:0;transform:translateX(30px);}}
+
+/* ── MODAL ── */
+.modal-bg{position:fixed;inset:0;z-index:500;background:rgba(0,0,0,.55);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;}
+.modal-bg.open{display:flex;}
+.modal{background:var(--panel);border:1px solid var(--border);border-radius:20px;padding:28px;min-width:340px;max-width:480px;width:90%;animation:rise .28s ease;backdrop-filter:blur(24px);}
+.modal h3{font-family:'Playfair Display',serif;font-size:1.3rem;color:var(--cream);margin-bottom:6px;}
+.modal p{font-size:.86rem;color:var(--muted);margin-bottom:20px;line-height:1.6;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;}
+
+/* ── FIELD CARDS ── */
+.field-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:4px;}
+.field-card{background:var(--rec-bg);border:1px solid var(--border);border-radius:14px;padding:16px;transition:transform 0.3s,border-color 0.3s;}
+.field-card:hover{transform:translateY(-4px);border-color:var(--border-hover);}
+.field-name{font-weight:700;font-size:.9rem;color:var(--cream);margin-bottom:8px;}
+.field-stat{font-size:.78rem;color:var(--muted);margin-bottom:3px;display:flex;justify-content:space-between;}
+.field-stat span:last-child{color:var(--cream);font-weight:600;}
+.field-bar{background:var(--input-bg);height:6px;border-radius:3px;margin-top:10px;overflow:hidden;}
+.field-bar-fill{height:100%;border-radius:3px;transition:width 1.2s cubic-bezier(.4,0,.2,1);}
+
+/* ── PROFILE MODAL ── */
+.profile-avatar{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--leaf),var(--gold));display:flex;align-items:center;justify-content:center;font-size:1.6rem;font-weight:700;letter-spacing:-.03em;color:#fff;margin:0 auto 14px;box-shadow:0 0 24px var(--glow);font-family:'Playfair Display',serif;}
+.profile-name{font-family:'Playfair Display',serif;font-size:1.4rem;text-align:center;color:var(--cream);}
+.profile-role{font-size:.82rem;color:var(--muted);text-align:center;margin-bottom:6px;}
+
+/* MISC */
+hr{border:none;border-top:1px solid var(--border);margin:16px 0;transition:border-color 0.4s;}
+.tc{display:none;}.tc.on{display:block;}
+.rc-p{display:none;}
+@keyframes slideIn{from{transform:translateX(-28px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+.sl{animation:slideIn .4s ease both;}
+select{cursor:pointer;}
+.gap-row{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+
+.info-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);gap:12px;}
+.info-row:last-child{border-bottom:none;}
+.info-label{font-size:.8rem;color:var(--muted);display:flex;align-items:center;}
+.info-val{font-size:.83rem;color:var(--cream);font-weight:600;text-align:right;}
+
+
+
+@media(max-width:960px){.stats-grid{grid-template-columns:1fr 1fr;}.a-grid,.d-grid,.field-grid{grid-template-columns:1fr;}.w-row{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:768px){.sidebar{transform:translateX(-100%);}.sidebar.open{transform:translateX(0);}.main{margin-left:0;padding:22px 14px;}.burger{display:flex;}.s-grid,.rec-grid{grid-template-columns:1fr;}.topbar{flex-direction:column;gap:12px;align-items:flex-start;}}
+@media(max-width:480px){.stats-grid{grid-template-columns:1fr;}.w-row{grid-template-columns:1fr 1fr;}}
+
+/* ═══ AUTH SCREENS ═══ */
+.auth-screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:9000;padding:20px;}
+.auth-card{position:relative;background:var(--panel);border:1px solid var(--border);border-radius:22px;padding:40px 36px 32px;width:100%;max-width:420px;box-shadow:0 24px 64px rgba(0,0,0,.45);animation:cardIn .45s cubic-bezier(.22,1,.36,1) both;overflow:hidden;}
+@keyframes cardIn{from{opacity:0;transform:translateY(28px) scale(.97)}to{opacity:1;transform:none}}
+.auth-decoration{position:absolute;border-radius:50%;pointer-events:none;}
+.auth-deco-1{width:220px;height:220px;background:radial-gradient(circle,var(--glow) 0%,transparent 70%);top:-80px;right:-60px;opacity:.45;}
+.auth-deco-2{width:160px;height:160px;background:radial-gradient(circle,rgba(201,168,76,.18) 0%,transparent 70%);bottom:-50px;left:-40px;}
+.auth-theme-toggle{position:absolute;top:16px;right:16px;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:.9rem;transition:all .2s;}
+.auth-theme-toggle:hover{border-color:var(--leaf);color:var(--leaf);}
+.auth-logo{display:flex;align-items:center;gap:10px;margin-bottom:24px;}
+.auth-logo-icon{width:44px;height:44px;background:var(--leaf);border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:1.4rem;box-shadow:0 4px 14px var(--glow);}
+.auth-logo-text{font-family:'Playfair Display',serif;font-size:1.25rem;color:var(--cream);}
+.auth-logo-text span{color:var(--leaf);}
+.auth-heading{font-family:'Playfair Display',serif;font-size:1.7rem;color:var(--cream);margin:0 0 6px;}
+.auth-sub{font-size:.85rem;color:var(--muted);margin:0 0 22px;}
+.auth-err{display:none;align-items:center;gap:8px;background:rgba(196,103,58,.15);border:1px solid rgba(196,103,58,.35);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:.83rem;color:#e07a5a;}
+.auth-err.show{display:flex;}
+.auth-field{position:relative;margin-bottom:16px;}
+.auth-field label{display:block;font-size:.78rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:7px;}
+.auth-field input{width:100%;background:var(--input-bg);border:1px solid var(--border);border-radius:11px;padding:11px 14px 11px 40px;font-size:.92rem;color:var(--cream);outline:none;transition:border-color .2s,box-shadow .2s;box-sizing:border-box;}
+.auth-field input:focus{border-color:var(--leaf);box-shadow:0 0 0 3px var(--glow);}
+.auth-field input::placeholder{color:var(--muted2);}
+.auth-field-icon{position:absolute;left:13px;top:38px;color:var(--muted);font-size:.82rem;pointer-events:none;}
+.pwd-strength{height:4px;background:var(--border);border-radius:4px;margin-top:8px;overflow:hidden;}
+.pwd-bar{height:100%;width:0%;border-radius:4px;transition:width .3s,background .3s;}
+.pwd-label{font-size:.75rem;color:var(--muted);margin-top:5px;}
+.auth-btn{width:100%;padding:13px;background:var(--leaf);color:var(--btn-text);border:none;border-radius:12px;font-size:.95rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-top:8px;transition:filter .2s,transform .2s,box-shadow .2s;box-shadow:0 4px 18px var(--glow);}
+.auth-btn:hover{filter:brightness(1.1);transform:translateY(-2px);}
+.auth-btn.loading{opacity:.75;pointer-events:none;}
+.auth-divider{text-align:center;color:var(--muted);font-size:.8rem;margin:16px 0;position:relative;}
+.auth-divider::before,.auth-divider::after{content:'';position:absolute;top:50%;width:42%;height:1px;background:var(--border);}
+.auth-divider::before{left:0;}.auth-divider::after{right:0;}
+.auth-switch{text-align:center;font-size:.84rem;color:var(--muted);}
+.auth-switch a{color:var(--leaf);cursor:pointer;font-weight:600;}
+.auth-switch a:hover{text-decoration:underline;}
+</style>
+</head>
+<body>
+
+
+<!-- ═══ LOGIN SCREEN ═══ -->
+<div class="auth-screen" id="loginScreen">
+  <div class="auth-card">
+    <div class="auth-decoration auth-deco-1"></div>
+    <div class="auth-decoration auth-deco-2"></div>
+    <button class="auth-theme-toggle" onclick="toggleAuthTheme()" title="Toggle theme"><i class="fas fa-moon" id="authThemeIcon"></i></button>
+    <div class="auth-logo"><div class="auth-logo-icon">🌿</div><div class="auth-logo-text">Smart<span>Crop</span>360</div></div>
+    <h2 class="auth-heading">Welcome back</h2>
+    <p class="auth-sub">Sign in to your precision farming dashboard</p>
+    <div class="auth-err" id="loginErr"><i class="fas fa-exclamation-circle"></i><span id="loginErrMsg">Invalid credentials.</span></div>
+    <div class="auth-field"><label>Username or Email</label><i class="fas fa-user auth-field-icon"></i><input type="text" id="loginUser" placeholder="Enter your username" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <div class="auth-field"><label>Password</label><i class="fas fa-lock auth-field-icon"></i><input type="password" id="loginPass" placeholder="Enter your password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="auth-btn" onclick="doLogin()" id="loginBtn"><i class="fas fa-sign-in-alt"></i> Sign In</button>
+    <div class="auth-divider">or</div>
+    <div class="auth-switch">Don't have an account? <a onclick="showScreen('signup')">Create one free →</a></div>
+  </div>
+</div>
+
+<!-- ═══ SIGNUP SCREEN ═══ -->
+<div class="auth-screen" id="signupScreen" style="display:none;">
+  <div class="auth-card">
+    <div class="auth-decoration auth-deco-1"></div>
+    <div class="auth-decoration auth-deco-2"></div>
+    <button class="auth-theme-toggle" onclick="toggleAuthTheme()" title="Toggle theme"><i class="fas fa-moon" id="authThemeIcon2"></i></button>
+    <div class="auth-logo"><div class="auth-logo-icon">🌿</div><div class="auth-logo-text">Smart<span>Crop</span>360</div></div>
+    <h2 class="auth-heading">Create account</h2>
+    <p class="auth-sub">Join thousands of farmers using precision intelligence</p>
+    <div class="auth-err" id="signupErr"><i class="fas fa-exclamation-circle"></i><span id="signupErrMsg">Please fill all fields correctly.</span></div>
+    <div class="auth-field"><label>Full Name</label><i class="fas fa-id-card auth-field-icon"></i><input type="text" id="signupName" placeholder="Your full name" autocomplete="name"></div>
+    <div class="auth-field"><label>Username</label><i class="fas fa-user auth-field-icon"></i><input type="text" id="signupUser" placeholder="Choose a username" autocomplete="username"></div>
+    <div class="auth-field"><label>Email</label><i class="fas fa-envelope auth-field-icon"></i><input type="email" id="signupEmail" placeholder="your@email.com" autocomplete="email"></div>
+    <div class="auth-field"><label>Password</label><i class="fas fa-lock auth-field-icon"></i><input type="password" id="signupPass" placeholder="Create a password" autocomplete="new-password" oninput="checkPwd(this.value)" onkeydown="if(event.key==='Enter')doSignup()"><div class="pwd-strength"><div class="pwd-bar" id="pwdBar"></div></div><div class="pwd-label" id="pwdLabel">Enter a password</div></div>
+    <button class="auth-btn" onclick="doSignup()" id="signupBtn"><i class="fas fa-seedling"></i> Create Account</button>
+    <div class="auth-divider">or</div>
+    <div class="auth-switch">Already have an account? <a onclick="showScreen('login')">← Sign in</a></div>
+  </div>
+</div>
+
+<!-- ═══ PROFILE VIEW MODAL ═══ -->
+<div class="blob ba"></div>
+<div class="blob bb"></div>
+<div class="blob bc"></div>
+<div id="toast"></div>
+
+
+
+<div class="modal-bg" id="profileModal">
+  <div class="modal" style="max-width:380px;text-align:center;">
+    <div class="profile-avatar" id="pmAvatar">?</div>
+    <div class="profile-name" id="pmName">—</div>
+    <div class="profile-role" id="pmRole">—</div>
+    <div style="margin:16px 0 14px;">
+      <div class="info-row"><span class="info-label"><i class="fas fa-user" style="margin-right:6px;opacity:.5;"></i>Username</span><span class="info-val" id="pmUsername">—</span></div>
+      <div class="info-row"><span class="info-label"><i class="fas fa-envelope" style="margin-right:6px;opacity:.5;"></i>Email</span><span class="info-val" id="pmEmail">—</span></div>
+      <div class="info-row"><span class="info-label"><i class="fas fa-map-marker-alt" style="margin-right:6px;opacity:.5;"></i>Region</span><span class="info-val" id="pmRegion">—</span></div>
+    </div>
+    <div class="modal-actions" style="margin-top:18px;justify-content:center;gap:10px;">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('profileModal')">Close</button>
+      <button class="btn btn-danger btn-sm" onclick="closeModal('profileModal');doLogout()"><i class="fas fa-sign-out-alt"></i> Logout</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-bg" id="delModal">
+  <div class="modal">
+    <h3>Dismiss Alert</h3>
+    <p>Are you sure you want to dismiss this alert? This action cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('delModal')">Cancel</button>
+      <button class="btn btn-danger btn-sm" onclick="confirmDismiss()"><i class="fas fa-trash"></i> Dismiss</button>
+    </div>
+  </div>
+</div>
+
+<button class="burger" id="burger" onclick="toggleSidebar()"><i class="fas fa-bars"></i></button>
+
+<div class="shell">
+<!-- ═══ SIDEBAR ═══ -->
+<aside class="sidebar" id="sidebar">
+  <div class="logo">
+    <div class="logo-icon">🌿</div>
+    <div class="logo-text">Smart<span>Crop</span>360</div>
+  </div>
+  <ul class="nav">
+    <li><a onclick="go('dashboard')"       id="n-dashboard"       class="on"><i class="fas fa-th-large"></i> Dashboard</a></li>
+    <li><a onclick="go('disease')"         id="n-disease"             ><i class="fas fa-leaf"></i> Disease Detection</a></li>
+    <li><a onclick="go('recommendations')" id="n-recommendations"     ><i class="fas fa-lightbulb"></i> Recommendations</a></li>
+    <li><a onclick="go('chat')"            id="n-chat"                ><i class="fas fa-robot"></i> AI Chat</a></li>
+    <li><a onclick="go('map')"             id="n-map"                 ><i class="fas fa-map-marked-alt"></i> Field Map</a></li>
+    <li><a onclick="go('analytics')"       id="n-analytics"           ><i class="fas fa-chart-bar"></i> Analytics</a></li>
+    <li><a onclick="go('alerts')"          id="n-alerts"              ><i class="fas fa-bell"></i> Alerts <span id="alertBadge" style="display:inline-block;width:7px;height:7px;background:var(--rust);border-radius:50%;margin-left:5px;vertical-align:middle;box-shadow:0 0 6px var(--rust);"></span></a></li>
+    <li><a onclick="go('settings')"        id="n-settings"            ><i class="fas fa-cog"></i> Settings</a></li>
+  </ul>
+  <div style="margin-top:auto;padding-top:18px;">
+    <div class="theme-pill" style="margin-bottom:12px;">
+      <div class="theme-opt active" id="topt-dark"  onclick="setTheme('dark')">🌑 Dark</div>
+      <div class="theme-opt"        id="topt-light" onclick="setTheme('light')">☀️ Earth</div>
+    </div>
+    <div class="sidebar-foot">Precision Farming Intelligence</div>
+  </div>
+</aside>
+
+<!-- ═══ MAIN ═══ -->
+<main class="main">
+
+<!-- ━━━━ DASHBOARD ━━━━ -->
+<div class="page active" id="p-dashboard">
+    <div class="topbar">
+    <div>
+      <div class="page-title">Dashboard</div>
+      <div class="page-sub" id="dashDate">Loading date...</div>
+    </div>
+    <div class="topbar-actions">
+      <div style="display:flex;align-items:center;gap:6px;padding:5px 12px;background:var(--input-bg);border:1px solid var(--border);border-radius:20px;font-size:.75rem;color:var(--muted);">
+        <span id="apiStatusDot" style="width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block;transition:background .3s;" title="Checking..."></span>
+        <span id="apiStatusLbl">Connecting...</span>
+      </div>
+      <button class="btn btn-ghost" onclick="go('alerts')"><i class="fas fa-bell"></i> <span id="notifCount">3 Alerts</span></button>
+      <button class="btn btn-gold"  onclick="openProfileModal()"><i class="fas fa-user"></i> Profile</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab on" onclick="dTab(this,'ov')"><i class="fas fa-seedling"></i> Field Overview</button>
+    <button class="tab"    onclick="dTab(this,'wx')"><i class="fas fa-cloud-sun"></i> Weather</button>
+  </div>
+
+  <!-- Field Overview -->
+  <div class="tc on" id="ov">
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-icon">💧</div><div class="stat-val" id="soilMoisture">0</div><div class="stat-label">Soil Moisture %</div></div>
+      <div class="stat"><div class="stat-icon">🌡️</div><div class="stat-val" id="temperature">0</div><div class="stat-label">Temperature °C</div></div>
+      <div class="stat"><div class="stat-icon">🌫️</div><div class="stat-val" id="humidity">0</div><div class="stat-label">Humidity %</div></div>
+    </div>
+
+
+    <!-- Alert scroll -->
+    <div class="card" style="margin-bottom:20px;">
+      <p class="stitle"><i class="fas fa-bell"></i> Active Alerts</p>
+      <div class="scroll-x">
+        <div class="apill apill-r"><div class="apill-title">🔴 Disease Detected</div><div class="apill-msg">Tomato Leaf Blight in Field 2</div><div class="apill-time">2 hours ago</div></div>
+        <div class="apill apill-y"><div class="apill-title">⚠️ Weather Warning</div><div class="apill-msg">Heavy rainfall expected in 24 hours</div><div class="apill-time">5 hours ago</div></div>
+        <div class="apill apill-g"><div class="apill-title">🔧 Maintenance</div><div class="apill-msg">Irrigation system requires checkup</div><div class="apill-time">1 day ago</div></div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="card">
+      <p class="stitle"><i class="fas fa-bolt"></i> Quick Actions</p>
+      <div class="gap-row">
+        <button class="btn btn-primary" onclick="go('disease')"><i class="fas fa-search"></i> Detect Disease</button>
+        <button class="btn btn-ghost"   onclick="go('map')"><i class="fas fa-map"></i> View Map</button>
+        <button class="btn btn-ghost"   onclick="go('analytics')"><i class="fas fa-chart-line"></i> Analytics</button>
+        <button class="btn btn-ghost"   onclick="go('chat')"><i class="fas fa-robot"></i> Ask AI</button>
+        <button class="btn btn-ghost"   onclick="go('recommendations')"><i class="fas fa-lightbulb"></i> Tips</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Weather -->
+  <div class="tc" id="wx">
+    <div class="card" style="margin-bottom:18px;">
+      <p class="stitle"><i class="fas fa-cloud-sun-rain"></i> 5-Day Forecast</p>
+      <div class="w-row">
+        <div class="wc"><div class="wc-day">Today</div><div class="wc-icon">☀️</div><div class="wc-temp">28°C</div><div class="wc-desc">Clear</div></div>
+        <div class="wc"><div class="wc-day">Tue</div><div class="wc-icon">🌦️</div><div class="wc-temp">24°C</div><div class="wc-desc">Heavy Rain</div></div>
+        <div class="wc"><div class="wc-day">Wed</div><div class="wc-icon">⛅</div><div class="wc-temp">26°C</div><div class="wc-desc">Partly Cloudy</div></div>
+        <div class="wc"><div class="wc-day">Thu</div><div class="wc-icon">🌤️</div><div class="wc-temp">30°C</div><div class="wc-desc">Sunny</div></div>
+        <div class="wc"><div class="wc-day">Fri</div><div class="wc-icon">🌧️</div><div class="wc-temp">22°C</div><div class="wc-desc">Rain</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <p class="stitle"><i class="fas fa-exclamation-triangle"></i> Weather Advisory</p>
+      <div class="apill apill-y" style="min-width:unset;">
+        <div class="apill-title">⚠️ Heavy Rainfall Alert</div>
+        <div class="apill-msg">Expected 80–120mm over 24 hours starting tomorrow. Ensure proper field drainage. Avoid pesticide application 12 hrs before rain.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━ DISEASE DETECTION ━━━━ -->
+<div class="page" id="p-disease">
+  <div class="topbar">
+    <div><div class="page-title">Disease Detection</div><div class="page-sub">Upload a leaf image or describe symptoms for AI-powered diagnosis</div></div>
+  </div>
+  <div class="d-grid">
+    <div class="card">
+      <p class="stitle"><i class="fas fa-upload"></i> Upload & Diagnose</p>
+      <label class="flabel">Leaf Image</label>
+      <input type="file" id="leafImage" accept="image/*">
+
+      <button id="predictBtn" class="btn btn-primary" style="width:100%;justify-content:center;margin-bottom:14px;">
+        <i class="fas fa-search"></i> Predict From Image
+      </button>
+      <hr>
+      <label class="flabel">Or Describe Symptoms</label>
+      <textarea id="textQuery" rows="3" placeholder="e.g. brown spots on tomato leaves, yellowing edges..."></textarea>
+      <button id="textPredictBtn" class="btn btn-primary" style="width:100%;justify-content:center;">
+        <i class="fas fa-microscope"></i> Predict From Text
+      </button>
+
+      <div style="margin-top:20px;">
+        <label class="flabel">Predicted Disease</label>
+        <div class="d-result" id="diseaseOutput">—</div>
+      </div>
+      <div style="margin-top:13px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <label class="flabel" style="margin-bottom:0;">Confidence</label>
+          <span id="confPct" style="font-size:.9rem;color:var(--leaf);font-weight:700;">—</span>
+        </div>
+        <div class="conf-wrap"><div id="confidenceBar"></div></div>
+      </div>
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:7px;">
+        <div class="info-row">
+          <span class="info-label"><i class="fas fa-exclamation-triangle"></i> Severity</span>
+          <span class="info-val" id="severity" style="padding:4px 12px;border-radius:8px;font-weight:700;">—</span>
+        </div>
+        <div style="margin-top:4px;">
+          <span class="info-label"><i class="fas fa-clipboard-list"></i> Recommendation</span>
+          <div id="recommendation" style="font-size:.78rem;color:var(--text);margin-top:6px;line-height:1.55;">—</div>
+          <span id="recToggle" onclick="toggleRec()" style="display:none;font-size:.72rem;color:var(--leaf);cursor:pointer;margin-top:4px;">Show more</span>
+        </div>
+      </div>
+      <div id="diseaseActions" style="display:none;margin-top:14px;">
+        <div class="gap-row">
+          <button class="btn btn-ghost btn-sm" onclick="go('recommendations')"><i class="fas fa-lightbulb"></i> View Treatment</button>
+          <button class="btn btn-ghost btn-sm" onclick="saveDiseaseReport()"><i class="fas fa-save"></i> Save Report</button>
+          <button class="btn btn-ghost btn-sm" onclick="clearScan()" style="color:var(--rust);"><i class="fas fa-redo"></i> New Scan</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="display:flex;flex-direction:column;">
+      <p class="stitle"><i class="fas fa-leaf"></i> Leaf Preview</p>
+      <div class="prev-box" id="prevBox">
+        <img id="preview" alt="leaf preview">
+        <div id="prevTxt" style="text-align:center;padding:28px;">
+          <i class="fas fa-image" style="font-size:2.2rem;opacity:.35;display:block;margin-bottom:10px;color:var(--leaf);"></i>
+          <span style="color:var(--muted2);font-size:.83rem;">Upload a leaf image to preview it here</span>
+        </div>
+      </div>
+      <!-- History -->
+      <div style="margin-top:16px;">
+        <p class="stitle" style="margin-bottom:10px;font-size:.9rem;"><i class="fas fa-history"></i> Recent Detections</p>
+        <div id="detectionHistory" style="display:flex;flex-direction:column;gap:7px;">
+          <span style="font-size:.78rem;color:var(--muted2);">No detections yet.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━ RECOMMENDATIONS ━━━━ -->
+<div class="page" id="p-recommendations">
+  <div class="topbar">
+    <div><div class="page-title">Recommendations</div><div class="page-sub">Actionable guidance for healthier, higher-yield crops</div></div>
+  </div>
+  
+  <!-- No Diagnosis Banner -->
+  <div id="noDiagnosisBanner" style="display:none;background:var(--warn-bg);border:1px solid var(--warn-border);border-radius:14px;padding:20px;margin-bottom:20px;text-align:center;">
+    <i class="fas fa-info-circle" style="font-size:2rem;color:var(--warn-text);margin-bottom:10px;"></i>
+    <h3 style="color:var(--warn-text);margin-bottom:8px;font-size:1.1rem;">No Diagnosis Yet</h3>
+    <p style="color:var(--muted);margin-bottom:15px;">Detect a plant disease first to get personalized recommendations for your crop.</p>
+    <button class="btn btn-primary" onclick="go('disease')"><i class="fas fa-leaf"></i> Go to Disease Detection</button>
+  </div>
+  
+  <!-- Diagnosis Context Info -->
+  <div id="diagnosisContextInfo" style="display:none;background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:14px;padding:15px;margin-bottom:20px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <i class="fas fa-check-circle" style="font-size:1.5rem;color:var(--ok-text);"></i>
+      <div style="flex:1;">
+        <div style="font-weight:700;color:var(--ok-text);margin-bottom:3px;">Recommendations for: <span id="contextCropName"></span></div>
+        <div style="font-size:0.85rem;color:var(--muted);">Showing personalized advice based on your diagnosis</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="tabs">
+    <button class="tab on" onclick="rTab(this,'prev')"><i class="fas fa-shield-alt"></i> Preventive</button>
+    <button class="tab"    onclick="rTab(this,'treat')"><i class="fas fa-syringe"></i> Treatment</button>
+    <button class="tab"    onclick="rTab(this,'eco')"><i class="fas fa-leaf"></i> Eco-Friendly</button>
+    <button class="tab"    onclick="rTab(this,'irr')"><i class="fas fa-tint"></i> Irrigation</button>
+  </div>
+  <div id="rc-prev" class="rc-p" style="display:block;"><div class="rec-grid">
+    <div class="rec"><div class="rec-ico"><i class="fas fa-sync-alt"></i></div><div><div class="rec-txt">Crop rotation every 2–3 seasons to reduce soil-borne pathogen buildup</div></div></div>
+    <div class="rec"><div class="rec-ico"><i class="fas fa-seedling"></i></div><div><div class="rec-txt">Choose disease-resistant varieties certified for your region</div></div></div>
+    <div class="rec"><div class="rec-ico"><i class="fas fa-broom"></i></div><div><div class="rec-txt">Regular field sanitation — remove and dispose of infected plant debris</div></div></div>
+    <div class="rec"><div class="rec-ico"><i class="fas fa-cloud-sun-rain"></i></div><div><div class="rec-txt">Monitor weather daily; avoid irrigation before heavy rainfall forecast</div></div></div>
+    <div class="rec"><div class="rec-ico"><i class="fas fa-eye"></i></div><div><div class="rec-txt">Weekly visual inspections of all fields, especially during humid seasons</div></div></div>
+    <div class="rec"><div class="rec-ico"><i class="fas fa-flask"></i></div><div><div class="rec-txt">Conduct soil testing every 6 months to detect nutrient imbalances early</div></div></div>
+  </div></div>
+  <div id="rc-treat" class="rc-p"><div class="rec-grid">
+    <div class="rec"><div class="rec-ico"><i class="fas fa-spray-can"></i></div><div><div class="rec-txt">Fungicide spray once a week — rotate chemicals to avoid resistance</div></div></div>
+    <div class="rec"><div class="rec-ico"><i class="fas fa-leaf"></i></div><div><div class="rec-txt">Use crop-specific organic pesticides; check label for correct dilution</div></div></div>
+    <div class="rec"><div class="rec-ico"><i class="fas fa-weight"></i></div><div><div class="rec-txt">Adjust dosage based on disease severity — over-application harms soil</div></div></div>
+    <div class="rec"><div class="rec-ico"><i class="fas fa-cut"></i></div><div><div class="rec-txt">Prune infected branches immediately; seal wounds with copper paste</div></div></div>
+  </div></div>
+  <div id="rc-eco" class="rc-p"><div class="rec-grid">
+    <div class="rec"><div class="rec-ico"><i class="fas fa-oil-can"></i></div><div><div class="rec-txt">Neem oil spray (5ml/L) every 7–10 days — effective against most fungi and pests</div></div></div>
+    <div class="rec"><div class="rec-ico"><i class="fas fa-bug"></i></div><div><div class="rec-txt">Introduce beneficial insects: ladybugs and parasitic wasps for natural pest control</div></div></div>
+    <div class="rec"><div class="rec-ico"><i class="fas fa-tree"></i></div><div><div class="rec-txt">Mulching with dry leaves — suppresses weeds and prevents fungal splash-back</div></div></div>
+    <div class="rec"><div class="rec-ico"><i class="fas fa-recycle"></i></div><div><div class="rec-txt">Compost organic waste into fertilizer — reduces dependency on chemical inputs</div></div></div>
+  </div></div>
+  <div id="rc-irr" class="rc-p"><div class="rec-grid">
+    <div class="rec"><div class="rec-ico"><i class="fas fa-tint"></i></div><div><div class="rec-txt">Drip irrigation preferred — reduces leaf wetness and fungal risk</div></div></div>
+    <div class="rec"><div class="rec-ico"><i class="fas fa-clock"></i></div><div><div class="rec-txt">Water early morning so foliage dries before evening — reduces disease</div></div></div>
+    <div class="rec"><div class="rec-ico"><i class="fas fa-chart-line"></i></div><div><div class="rec-txt">Maintain soil moisture at 20–30% for most vegetable crops</div></div></div>
+    <div class="rec"><div class="rec-ico"><i class="fas fa-battery-half"></i></div><div><div class="rec-txt">Check irrigation lines monthly for blockages and pressure drops</div></div></div>
+  </div></div>
+</div>
+
+<!-- ━━━━ AI CHAT ━━━━ -->
+<div class="page" id="p-chat">
+  <div class="topbar">
+    <div><div class="page-title">AI Chat</div><div class="page-sub">Ask about crop diseases, weather, irrigation, or farming best practices</div></div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-sm" onclick="clearChat()"><i class="fas fa-trash"></i> Clear</button>
+    </div>
+  </div>
+  
+  <!-- Chat Context Info -->
+  <div id="chatContextInfo" style="display:none;background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:14px;padding:15px;margin-bottom:20px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <i class="fas fa-brain" style="font-size:1.5rem;color:var(--ok-text);"></i>
+      <div style="flex:1;">
+        <div style="font-weight:700;color:var(--ok-text);margin-bottom:3px;">Context-Aware Mode: <span id="chatContextCrop"></span></div>
+        <div style="font-size:0.85rem;color:var(--muted);">AI knows about your diagnosed crop and will provide specific advice</div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="chat-wrap">
+    <div class="chat-head">
+      <i class="fas fa-robot" style="color:var(--leaf);font-size:.95rem;"></i>
+      <span class="chat-head-name">SmartCrop AI Assistant</span>
+      <div class="dot"></div>
+    </div>
+    <div class="chat-msgs" id="chatMsgs">
+      <div class="msg msg-a">👋 Hello! I'm your SmartCrop AI assistant. Ask me about crop diseases, irrigation, weather, or any farming question.</div>
+    </div>
+    <div style="padding:8px 14px 0;background:var(--rec-bg);border-top:1px solid var(--border);">
+      <div style="display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;" class="scroll-x">
+        <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('How to prevent tomato blight?')">🍅 Tomato Blight</button>
+        <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('What causes yellow leaves?')">🌿 Yellow Leaves</button>
+        <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('When should I irrigate?')">💧 Irrigation Tips</button>
+        <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('What fertilizer should I use?')">🧪 Fertilizer</button>
+      </div>
+    </div>
+    <div class="chat-foot">
+      <input type="text" id="chatInput" placeholder="Type your question...">
+      <button class="btn btn-primary" onclick="sendMsg()"><i class="fas fa-paper-plane"></i> Send</button>
+    </div>
+  </div>
+</div>
+
+<!-- ━━━━ MAP ━━━━ -->
+<div class="page" id="p-map">
+  <div class="topbar">
+    <div><div class="page-title">Field Map</div><div class="page-sub">Real-time field locations with disease severity indicators</div></div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-sm" onclick="refreshMap()"><i class="fas fa-sync-alt"></i> Refresh</button>
+    </div>
+  </div>
+
+  <!-- Crop filter banner -->
+  <div id="mapContextInfo" style="display:none;background:var(--ok-bg);border:1px solid var(--ok-border);border-radius:14px;padding:14px 18px;margin-bottom:16px;">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <i class="fas fa-map-marker-alt" style="font-size:1.3rem;color:var(--ok-text);"></i>
+      <div style="flex:1;">
+        <div style="font-weight:700;color:var(--ok-text);font-size:.9rem;">Showing: <span id="mapContextCrop"></span> regions only</div>
+        <div style="font-size:.78rem;color:var(--muted);">Map filtered to your detected crop</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="clearMapFilter()"><i class="fas fa-globe"></i> Show All</button>
+    </div>
+  </div>
+
+  <!-- Map -->
+  <div class="card map-card" style="margin-bottom:16px;">
+    <div id="map"></div>
+  </div>
+
+  <!-- Legend + region buttons -->
+  <div class="card map-legend-card">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:10px;">
+      <p class="stitle" style="margin:0;"><i class="fas fa-circle-notch"></i> Severity Legend</p>
+      <div class="legend-row">
+        <span class="pill pill-r">● High</span>
+        <span class="pill pill-y">● Medium</span>
+        <span class="pill pill-g">● Low / Healthy</span>
+        <span class="pill" style="opacity:.4;background:var(--input-bg);border:1px solid var(--border);color:var(--muted);">● Not Detected</span>
+      </div>
+    </div>
+    <div id="mapFieldBtns"></div>
+  </div>
+</div>
+
+<!-- ━━━━ ANALYTICS ━━━━ -->
+<div class="page" id="p-analytics">
+  <div class="topbar">
+    <div><div class="page-title">Analytics</div><div class="page-sub">Trends, comparisons and field performance insights</div></div>
+    <div class="topbar-actions" style="display:flex;gap:8px;align-items:center;">
+      <select id="analyticsCrop" style="width:auto;margin-bottom:0;padding:8px 12px;font-size:.82rem;" onchange="updateCharts()">
+        <option value="">All Crops</option>
+        <option value="Apple">🍎 Apple</option>
+        <option value="Cherry">🍒 Cherry</option>
+        <option value="Corn">🌽 Corn</option>
+        <option value="Grape">🍇 Grape</option>
+        <option value="Orange">🍊 Orange</option>
+        <option value="Peach">🍑 Peach</option>
+        <option value="Pepper">🌶️ Pepper</option>
+        <option value="Potato">🥔 Potato</option>
+        <option value="Squash">🎃 Squash</option>
+        <option value="Strawberry">🍓 Strawberry</option>
+        <option value="Tomato">🍅 Tomato</option>
+      </select>
+      <select id="analyticsRange" style="width:auto;margin-bottom:0;padding:8px 12px;font-size:.82rem;" onchange="updateCharts()">
+        <option value="6m">Last 6 Months</option>
+        <option value="3m">Last 3 Months</option>
+        <option value="1y">Last Year</option>
+      </select>
+    </div>
+  </div>
+  <div class="stats-grid" style="margin-bottom:20px;">
+    <div class="stat"><div class="stat-icon">🌧️</div><div class="stat-val" id="statRainfall">—</div><div class="stat-label">Avg Rainfall mm</div></div>
+    <div class="stat"><div class="stat-icon">🦠</div><div class="stat-val" id="statCases">—</div><div class="stat-label">Disease Cases</div></div>
+    <div class="stat"><div class="stat-icon">📈</div><div class="stat-val" id="statHealth">—</div><div class="stat-label">Crop Health Avg</div></div>
+    <div class="stat"><div class="stat-icon">💊</div><div class="stat-val" id="statTreatments">—</div><div class="stat-label">Treatments Saved</div></div>
+  </div>
+  <div class="a-grid">
+    <div class="card"><p class="stitle"><i class="fas fa-chart-line"></i> Rainfall Trend</p><canvas id="rainfallChart"></canvas></div>
+    <div class="card"><p class="stitle"><i class="fas fa-chart-bar"></i> <span id="diseaseChartTitle">Disease Spread by Crop</span></p><canvas id="diseaseChart"></canvas></div>
+    <div class="card"><p class="stitle"><i class="fas fa-chart-area"></i> Soil Moisture Over Time</p><canvas id="moistureChart"></canvas></div>
+    <div class="card"><p class="stitle"><i class="fas fa-chart-pie"></i> Crop Distribution</p><canvas id="cropChart"></canvas></div>
+  </div>
+  <!-- RAG AI Insights Panel -->
+  <div class="card" id="analyticsInsightCard" style="margin-top:20px;display:none;">
+    <p class="stitle"><i class="fas fa-brain"></i> AI Field Insights</p>
+    <div id="analyticsInsightText" style="font-size:.87rem;color:var(--cream);line-height:1.7;white-space:pre-wrap;"></div>
+  </div>
+</div>
+
+<!-- ━━━━ ALERTS ━━━━ -->
+<div class="page" id="p-alerts">
+  <div class="topbar">
+    <div><div class="page-title">Alerts</div><div class="page-sub">All active notifications — click Dismiss to remove</div></div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost btn-sm" onclick="dismissAll()"><i class="fas fa-check-double"></i> Dismiss All</button>
+    </div>
+  </div>
+  <div id="alertsBox" style="display:flex;flex-direction:column;gap:14px;"></div>
+  <div id="noAlerts" style="display:none;text-align:center;padding:60px 20px;">
+    <i class="fas fa-check-circle" style="font-size:3rem;color:var(--leaf);opacity:.5;display:block;margin-bottom:14px;"></i>
+    <p style="color:var(--muted);font-size:.95rem;">All clear! No active alerts.</p>
+  </div>
+</div>
+
+<!-- ━━━━ SETTINGS ━━━━ -->
+<div class="page" id="p-settings">
+  <div class="topbar">
+    <div><div class="page-title">Settings</div><div class="page-sub">Customize your SmartCrop360 experience</div></div>
+  </div>
+  <div class="s-grid">
+    <div class="s-row"><div class="s-label">Enable Notifications</div><label class="tog"><input type="checkbox" id="set-notif" checked onchange="settingChanged('Notifications',this.checked)"><span class="tog-t"></span></label></div>
+    <div class="s-row"><div class="s-label">Notification Frequency</div>
+      <select style="width:auto;margin-bottom:0;" onchange="showToast('Frequency set to '+this.value,'ok')">
+        <option>Instant</option><option>Hourly</option><option>Daily</option>
+      </select>
+    </div>
+    <div class="s-row"><div class="s-label">Dark Mode</div><label class="tog"><input type="checkbox" id="set-dark" onchange="setTheme(this.checked?'dark':'light')"><span class="tog-t"></span></label></div>
+    <div class="s-row"><div class="s-label">Auto-Update Data</div><label class="tog"><input type="checkbox" checked onchange="settingChanged('Auto-update',this.checked)"><span class="tog-t"></span></label></div>
+
+    <div class="card" style="padding:17px 18px;">
+      <div class="s-label" style="margin-bottom:9px;">Region</div>
+      <select id="set-region" style="margin-bottom:0;">
+        <option>North India</option><option>South India</option><option>East India</option><option>West India</option>
+        <option>North East India</option><option>Central India</option>
+      </select>
+    </div>
+    <div class="card" style="padding:17px 18px;">
+      <div class="s-label" style="margin-bottom:9px;">Language</div>
+      <select id="set-lang" style="margin-bottom:0;">
+        <option>English</option><option>Hindi</option><option>Telugu</option><option>Kannada</option><option>Tamil</option><option>Marathi</option>
+      </select>
+    </div>
+    <div class="card" style="padding:17px 18px;">
+      <div class="s-label" style="margin-bottom:9px;">Theme</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div class="theme-pill" style="margin-bottom:0;">
+          <div class="theme-opt" id="sopt-dark"  onclick="setTheme('dark')">🌑 Dark</div>
+          <div class="theme-opt" id="sopt-light" onclick="setTheme('light')">☀️ Earth</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:20px;">
+    <button class="btn btn-primary" onclick="saveSettings()"><i class="fas fa-save"></i> Save Settings</button>
+    <button class="btn btn-ghost" style="margin-left:10px;" onclick="resetSettings()"><i class="fas fa-undo"></i> Reset</button>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script>
+// ═══════════════════════════════
+// THEME
+// ═══════════════════════════════
+function setTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('topt-dark').classList.toggle('active', t==='dark');
+  document.getElementById('topt-light').classList.toggle('active', t==='light');
+  const soptD = document.getElementById('sopt-dark');
+  const soptL = document.getElementById('sopt-light');
+  if (soptD) soptD.classList.toggle('active', t==='dark');
+  if (soptL) soptL.classList.toggle('active', t==='light');
+  const dm = document.getElementById('set-dark');
+  if (dm) dm.checked = t === 'dark';
+  // Rebuild charts on theme change
+  if (chartsDone) { destroyCharts(); initCharts(); }
+  localStorage.setItem('sc360-theme', t);
+}
+
+// ═══════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════
+let mapDone = false, chartsDone = false;
+function go(p) {
+  document.querySelectorAll('.page').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('.nav li a').forEach(x => x.classList.remove('on'));
+  document.getElementById('p-' + p).classList.add('active');
+  document.getElementById('n-' + p).classList.add('on');
+  if (window.innerWidth < 768) document.getElementById('sidebar').classList.remove('open');
+  
+  // Check if going to recommendations page
+  if (p === 'recommendations') {
+    checkDiagnosisForRecommendations();
+  }
+  
+  // Check if going to chat page
+  if (p === 'chat') {
+    checkDiagnosisForChat();
+  }
+  
+  // Check if going to map page
+  if (p === 'map') {
+    checkDiagnosisForMap();
+    if (!mapDone) {
+      mapDone = true;
+      setTimeout(() => initMap(), 50);
+    } else {
+      setTimeout(() => { leafletMap.invalidateSize(); renderMapMarkers(); }, 50);
+    }
+  }
+  
+  if (p === 'analytics') {
+    if (!chartsDone) { setTimeout(initCharts, 80); chartsDone = true; }
+    else { destroyCharts(); chartsDone = false; initCharts(); }
+  }
+  if (p === 'alerts') renderAlerts();
+  if (p === 'settings') {
+    // Sync theme pills and region when navigating to settings
+    const t = document.documentElement.getAttribute('data-theme') || 'dark';
+    const soptD = document.getElementById('sopt-dark');
+    const soptL = document.getElementById('sopt-light');
+    if (soptD) soptD.classList.toggle('active', t === 'dark');
+    if (soptL) soptL.classList.toggle('active', t === 'light');
+    loadSettingsFromUser();
+  }
+}
+
+// Check if diagnosis exists for chat
+function checkDiagnosisForChat() {
+  const hasDiagnosis = currentDiagnosisContext && (currentDiagnosisContext.crop || currentDiagnosisContext.disease);
+  const contextInfo = document.getElementById('chatContextInfo');
+  
+  if (hasDiagnosis && contextInfo) {
+    contextInfo.style.display = 'block';
+    const cropName = currentDiagnosisContext.crop || currentDiagnosisContext.disease;
+    document.getElementById('chatContextCrop').textContent = cropName.charAt(0).toUpperCase() + cropName.slice(1);
+  } else if (contextInfo) {
+    contextInfo.style.display = 'none';
+  }
+}
+
+// Check if diagnosis exists for map
+function checkDiagnosisForMap() {
+  const crop = currentDiagnosisContext?.crop;
+  const contextInfo = document.getElementById('mapContextInfo');
+
+  if (crop && contextInfo) {
+    contextInfo.style.display = 'block';
+    document.getElementById('mapContextCrop').textContent =
+      crop.charAt(0).toUpperCase() + crop.slice(1);
+  } else if (contextInfo) {
+    contextInfo.style.display = 'none';
+  }
+  // Re-render markers filtered to active crop (or all if none)
+  if (leafletMap) renderMapMarkers();
+}
+
+// Check if diagnosis exists before showing recommendations
+function checkDiagnosisForRecommendations() {
+  const hasDiagnosis = currentDiagnosisContext && (currentDiagnosisContext.crop || currentDiagnosisContext.disease);
+  const banner = document.getElementById('noDiagnosisBanner');
+  const contextInfo = document.getElementById('diagnosisContextInfo');
+  const tabs = document.querySelector('#p-recommendations .tabs');
+  const recPanels = document.querySelectorAll('.rc-p');
+  
+  if (!hasDiagnosis) {
+    // No diagnosis - show banner, hide recommendations
+    if (banner) banner.style.display = 'block';
+    if (contextInfo) contextInfo.style.display = 'none';
+    if (tabs) tabs.style.display = 'none';
+    recPanels.forEach(p => p.style.display = 'none');
+  } else {
+    // Has diagnosis - hide banner, show recommendations, load dynamic data
+    if (banner) banner.style.display = 'none';
+    if (contextInfo) {
+      contextInfo.style.display = 'block';
+      const cropName = currentDiagnosisContext.crop || currentDiagnosisContext.disease;
+      document.getElementById('contextCropName').textContent = cropName.charAt(0).toUpperCase() + cropName.slice(1);
+    }
+    if (tabs) tabs.style.display = 'flex';
+    // Show first tab content
+    document.getElementById('rc-prev').style.display = 'block';
+    
+    // Load dynamic recommendations
+    loadDynamicRecommendations();
+  }
+}
+function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
+
+// ═══════════════════════════════
+// DASHBOARD TABS
+// ═══════════════════════════════
+function dTab(btn, id) {
+  document.querySelectorAll('#p-dashboard .tc').forEach(x => x.classList.remove('on'));
+  document.querySelectorAll('#p-dashboard .tab').forEach(x => x.classList.remove('on'));
+  document.getElementById(id).classList.add('on'); btn.classList.add('on');
+}
+
+// ═══════════════════════════════
+// DATE / LIVE STATS
+// ═══════════════════════════════
+function setDate() {
+  const el = document.getElementById('dashDate');
+  const d = new Date();
+  el.textContent = d.toLocaleDateString('en-IN', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+}
+setDate();
+
+function count(id, end, ms) {
+  const el = document.getElementById(id); if (!el) return;
+  let cur = 0; const step = Math.ceil(end / (ms / 20));
+  const t = setInterval(() => { cur = Math.min(cur + step, end); el.textContent = cur; if (cur >= end) clearInterval(t); }, 20);
+}
+
+// Load dashboard stats from API
+async function loadDashboardStats() {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/dashboard/stats`);
+    if (!res.ok) throw new Error('Failed to load stats');
+    const data = await res.json();
+    count('soilMoisture', data.soil_moisture || 23, 1600);
+    count('temperature', data.temperature || 28, 1600);
+    count('humidity', data.humidity || 67, 1600);
+  } catch(e) {
+    // Fallback to default values
+    count('soilMoisture', 23, 1600);
+    count('temperature', 28, 1600);
+    count('humidity', 67, 1600);
+  }
+}
+loadDashboardStats();
+
+// Load weather forecast from API
+async function loadWeatherForecast() {
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/weather/forecast`);
+    if (!res.ok) throw new Error('Failed to load weather');
+    const data = await res.json();
+    
+    // Update weather cards
+    const weatherRow = document.querySelector('#wx .w-row');
+    if (weatherRow && data.forecast) {
+      weatherRow.innerHTML = data.forecast.map(w => `
+        <div class="wc">
+          <div class="wc-day">${w.day}</div>
+          <div class="wc-icon">${w.icon}</div>
+          <div class="wc-temp">${w.temp}°C</div>
+          <div class="wc-desc">${w.desc}</div>
+        </div>
+      `).join('');
+    }
+    
+    // Update weather alerts
+    if (data.alerts && data.alerts.length > 0) {
+      const alert = data.alerts[0];
+      const alertBox = document.querySelector('#wx .apill');
+      if (alertBox) {
+        alertBox.querySelector('.apill-title').textContent = alert.title;
+        alertBox.querySelector('.apill-msg').textContent = alert.message;
+      }
+    }
+  } catch(e) {
+    // Weather data already in HTML as fallback
+  }
+}
+// Load weather when switching to weather tab
+document.querySelector('[onclick*="dTab"][onclick*="wx"]')?.addEventListener('click', loadWeatherForecast);
+
+// ═══════════════════════════════
+// DISEASE DETECTION
+// ═══════════════════════════════
+document.getElementById('leafImage').addEventListener('change', function () {
+  const f = this.files[0]; if (!f) return;
+  const r = new FileReader();
+  r.onload = e => {
+    document.getElementById('preview').src = e.target.result;
+    document.getElementById('preview').style.display = 'block';
+    document.getElementById('prevTxt').style.display = 'none';
+  };
+  r.readAsDataURL(f);
+});
+
+// ═══════════════════════════════════════
+// DYNAMIC CONTEXT - Store current diagnosis
+// ═══════════════════════════════════════
+let currentDiagnosisContext = {
+  crop: null,
+  disease: null,
+  confidence: 0,
+  severity: null
+};
+
+function extractCropFromDisease(diseaseName) {
+  // Extract crop name from disease string (e.g., "apple_scab" -> "apple")
+  const lower = diseaseName.toLowerCase();
+  const crops = ['apple', 'tomato', 'potato', 'corn', 'grape', 'pepper', 'strawberry', 'cherry', 'peach', 'wheat'];
+  for (const crop of crops) {
+    if (lower.includes(crop)) return crop;
+  }
+  return null;
+}
+
+function showDiseaseResult(d, c, s, rec, fullData = {}) {
+  document.getElementById('diseaseOutput').textContent = d;
+  document.getElementById('confidenceBar').style.width = c + '%';
+  document.getElementById('confPct').textContent = c + '%';
+  const sevEl = document.getElementById('severity');
+  sevEl.textContent = s;
+  
+  // Set severity color and background
+  if (s === 'High') {
+    sevEl.style.color = 'var(--danger-text)';
+    sevEl.style.background = 'var(--danger-bg)';
+    sevEl.style.border = '1px solid var(--danger-border)';
+  } else if (s === 'Moderate' || s === 'Medium') {
+    sevEl.style.color = 'var(--warn-text)';
+    sevEl.style.background = 'var(--warn-bg)';
+    sevEl.style.border = '1px solid var(--warn-border)';
+  } else {
+    sevEl.style.color = 'var(--ok-text)';
+    sevEl.style.background = 'var(--ok-bg)';
+    sevEl.style.border = '1px solid var(--ok-border)';
+  }
+  
+  renderRecommendation(rec);
+  document.getElementById('diseaseActions').style.display = 'block';
+  
+  // Update global context for dynamic features
+  currentDiagnosisContext = {
+    crop: fullData.crop || extractCropFromDisease(d),
+    disease: d,
+    confidence: c,
+    severity: s,
+    fullData: fullData
+  };
+
+  // Sync analytics crop dropdown to the detected crop
+  const cropSel = document.getElementById('analyticsCrop');
+  if (cropSel && currentDiagnosisContext.crop) {
+    const match = Array.from(cropSel.options).find(o =>
+      o.value.toLowerCase() === currentDiagnosisContext.crop.toLowerCase()
+    );
+    if (match) cropSel.value = match.value;
+  }
+
+  // Show success message
+  showToast(`Diagnosis complete! Context saved for ${currentDiagnosisContext.crop || 'this disease'}`, 'ok');
+  updateChatQuickButtons();
+}
+
+// ── Recommendation collapse/expand ──────────────────────────
+let _recFull = '';
+function renderRecommendation(text) {
+  _recFull = text || '—';
+  const el     = document.getElementById('recommendation');
+  const toggle = document.getElementById('recToggle');
+  const lines  = _recFull.split('\n').filter(l => l.trim() !== '');
+
+  if (lines.length <= 5) {
+    el.innerHTML    = _recFull.replace(/\n/g, '<br>');
+    toggle.style.display = 'none';
+    el.dataset.collapsed = 'false';
+  } else {
+    const summary = lines.slice(0, 5).join('\n');
+    el.innerHTML    = summary.replace(/\n/g, '<br>') + '<span style="color:var(--muted)"> …</span>';
+    toggle.style.display = 'inline-block';
+    toggle.textContent   = 'Show more';
+    el.dataset.collapsed = 'true';
+  }
+}
+
+function toggleRec() {
+  const el     = document.getElementById('recommendation');
+  const toggle = document.getElementById('recToggle');
+  if (el.dataset.collapsed === 'true') {
+    el.innerHTML         = _recFull.replace(/\n/g, '<br>');
+    el.dataset.collapsed = 'false';
+    toggle.textContent   = 'Show less';
+  } else {
+    const lines   = _recFull.split('\n').filter(l => l.trim() !== '');
+    const summary = lines.slice(0, 5).join('\n');
+    el.innerHTML         = summary.replace(/\n/g, '<br>') + '<span style="color:var(--muted)"> …</span>';
+    el.dataset.collapsed = 'true';
+    toggle.textContent   = 'Show more';
+  }
+}
+
+document.getElementById('predictBtn').addEventListener('click', async () => {
+  const f = document.getElementById('leafImage').files[0];
+  if (!f) { showToast('Please upload a leaf image first','warn'); return; }
+  const btn = document.getElementById('predictBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Analyzing...';
+  showToast('Sending image to AI...','ok');
+  try {
+    const form = new FormData();
+    form.append('file', f);
+    const res = await fetch(`${API_BASE}/api/v1/disease/predict/image`, { method:'POST', body:form });
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    const data = await res.json();
+    showDiseaseResult(
+      data.disease || data.label || 'Unknown',
+      Math.round(data.confidence || data.score || 50),
+      data.severity || 'Moderate',
+      data.recommendation || data.advice || 'Consult an agronomist for treatment options.',
+      data  // Pass full data for context
+    );
+    showToast('Detection complete!','ok');
+  } catch(e) {
+    showToast('API error — using offline detection','warn');
+    showDiseaseResult('Tomato Leaf Blight', 88, 'Moderate', 'Apply mancozeb fungicide; remove infected leaves immediately.', {crop: 'Tomato'});
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-leaf"></i> Detect Disease';
+  }
+});
+
+document.getElementById('textPredictBtn').addEventListener('click', async () => {
+  const q = document.getElementById('textQuery').value.trim();
+  if (!q) { showToast('Please describe the symptoms first','warn'); return; }
+  const btn = document.getElementById('textPredictBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Analyzing...';
+  showToast('Sending to AI...','ok');
+  try {
+    const res = await fetch(`${API_BASE}/api/v1/disease/predict/text`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: q, symptoms: q })
+    });
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    const data = await res.json();
+    showDiseaseResult(
+      data.disease || data.label || 'Unknown Disease',
+      Math.round(data.confidence || data.score || 65),
+      data.severity || 'Moderate',
+      data.recommendation || data.advice || 'Monitor closely; consult an agronomist.',
+      data  // Pass full data for context
+    );
+    showToast('Text prediction complete!','ok');
+  } catch(e) {
+    showToast('API error — using offline detection','warn');
+    // Offline fallback
+    let d = 'Unknown Disease', c = 65, s = 'Low', r = 'Monitor closely; consult an agronomist.', crop = null;
+    const ql = q.toLowerCase();
+    if (ql.includes('brown') || ql.includes('spot') || ql.includes('blight'))
+      { d = 'Leaf Spot / Blight'; c = 83; s = 'Moderate'; r = 'Apply copper fungicide weekly. Remove spotted leaves.'; }
+    else if (ql.includes('yellow') || ql.includes('curl'))
+      { d = 'Yellow Leaf Curl Virus'; c = 79; s = 'High'; r = 'Remove infected plants; control whitefly population.'; }
+    else if (ql.includes('powder') || ql.includes('white') || ql.includes('mildew'))
+      { d = 'Powdery Mildew'; c = 86; s = 'Medium'; r = 'Spray sulfur-based fungicide every 7 days.'; }
+    else if (ql.includes('wilt') || ql.includes('droop'))
+      { d = 'Fusarium Wilt'; c = 74; s = 'High'; r = 'No chemical cure — remove and destroy affected plants.'; }
+    else if (ql.includes('rust') || ql.includes('orange'))
+      { d = 'Leaf Rust'; c = 80; s = 'Moderate'; r = 'Apply triazole fungicides; rotate crops next season.'; }
+    showDiseaseResult(d, c, s, r, {crop});
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-search"></i> Predict Disease';
+  }
+});
+
+// ═══════════════════════════════
+// TREATMENT LOG — per-user, 7-day expiry
+// ═══════════════════════════════
+const LOG_TTL = 7 * 24 * 60 * 60 * 1000; // 7 days in ms
+
+function logKey(username) {
+  return 'sc360-log-' + (username || 'guest');
+}
+
+function getLog(username) {
+  try {
+    const raw = localStorage.getItem(logKey(username));
+    const entries = raw ? JSON.parse(raw) : [];
+    // Purge entries older than 7 days
+    const now = Date.now();
+    return entries.filter(e => (now - e.savedAt) < LOG_TTL);
+  } catch(e) { return []; }
+}
+
+function saveLog(username, entries) {
+  localStorage.setItem(logKey(username), JSON.stringify(entries));
+}
+
+function relativeTime(ts) {
+  const diff = Date.now() - ts;
+  const m = Math.floor(diff / 60000);
+  if (m < 1)  return 'Just now';
+  if (m < 60) return m + 'm ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ago';
+  const d = Math.floor(h / 24);
+  return d + 'd ago';
+}
+
+function severityBadgeClass(sev) {
+  if (!sev) return 'badge-y';
+  const s = sev.toLowerCase();
+  if (s === 'high')   return 'badge-r';
+  if (s === 'low' || s === 'none') return 'badge-g';
+  return 'badge-y';
+}
+
+function renderDetectionHistory() {
+  const hist = document.getElementById('detectionHistory');
+  if (!hist) return;
+  const username = currentUser?.username;
+  const entries  = getLog(username);
+
+  if (!entries.length) {
+    hist.innerHTML = '<span style="font-size:.78rem;color:var(--muted2);">No detections yet.</span>';
+    return;
+  }
+
+  hist.innerHTML = '';
+  // Show newest first, cap at 10 visible
+  [...entries].reverse().slice(0, 10).forEach(e => {
+    const row = document.createElement('div');
+    row.className = 'info-row';
+    row.style.cssText = 'cursor:pointer;';
+    row.title = 'Click to view saved treatment';
+    row.innerHTML =
+      `<span class="info-label" style="font-size:.78rem;">${e.disease}${e.crop ? ' · ' + e.crop : ''}</span>` +
+      `<span class="badge ${severityBadgeClass(e.severity)}" style="font-size:.68rem;">${relativeTime(e.savedAt)}</span>`;
+    row.onclick = () => viewSavedEntry(e);
+    hist.appendChild(row);
+  });
+}
+
+function viewSavedEntry(e) {
+  // Re-populate the result panel with the saved entry
+  showDiseaseResult(
+    e.disease, e.confidence || 75, e.severity || 'Moderate',
+    e.recommendation || '—', { crop: e.crop, soil_ph: e.soil_ph }
+  );
+  showToast('Loaded saved detection: ' + e.disease, 'ok');
+}
+
+function saveDiseaseReport() {
+  const disease        = document.getElementById('diseaseOutput').textContent;
+  const severity       = document.getElementById('severity').textContent;
+  const recommendation = _recFull || document.getElementById('recommendation').textContent;
+  const confidence     = parseInt(document.getElementById('confPct').textContent) || 75;
+  const crop           = currentDiagnosisContext?.crop || '';
+  const soil_ph        = currentDiagnosisContext?.fullData?.soil_ph || null;
+
+  if (!disease || disease === '—') {
+    showToast('Run a detection first before saving.', 'warn'); return;
+  }
+
+  const username = currentUser?.username;
+  const entries  = getLog(username);
+
+  // Avoid exact duplicate within last 60 seconds
+  const now = Date.now();
+  const isDupe = entries.some(e => e.disease === disease && (now - e.savedAt) < 60000);
+  if (isDupe) { showToast('Already saved this detection.', 'warn'); return; }
+
+  entries.push({ disease, severity, recommendation, confidence, crop, soil_ph, savedAt: now });
+  saveLog(username, entries);
+  renderDetectionHistory();
+  refreshAlerts(); // update alerts with new diagnosis
+  showToast('Treatment log saved!', 'ok');
+}
+
+// ═══════════════════════════════
+// RECOMMENDATIONS - DYNAMIC LOADING
+// ═══════════════════════════════
+async function loadDynamicRecommendations() {
+  if (!currentDiagnosisContext.crop && !currentDiagnosisContext.disease) {
+    return; // No context, use default recommendations
+  }
+  
+  try {
+    const params = new URLSearchParams({ category: 'all' });
+    if (currentDiagnosisContext.crop) params.append('crop', currentDiagnosisContext.crop);
+    if (currentDiagnosisContext.disease) params.append('disease', currentDiagnosisContext.disease);
+    
+    const res = await fetch(`${API_BASE}/api/v1/recommendations?${params}`);
+    if (!res.ok) throw new Error('API error');
+    
+    const data = await res.json();
+    
+    // Update each category
+    updateRecCategory('prev', data.preventive || []);
+    updateRecCategory('treat', data.treatment || []);
+    updateRecCategory('eco', data.eco || []);
+    updateRecCategory('irr', data.irrigation || []);
+    
+    showToast(`Recommendations updated for ${currentDiagnosisContext.crop || 'diagnosed disease'}`, 'ok');
+  } catch(e) {
+    console.log('Using default recommendations');
+  }
+}
+
+function updateRecCategory(catId, items) {
+  const container = document.getElementById(`rc-${catId}`);
+  if (!container || !items || items.length === 0) return;
+  
+  const grid = container.querySelector('.rec-grid');
+  if (!grid) return;
+  
+  grid.innerHTML = items.map(item => `
+    <div class="rec">
+      <div class="rec-ico"><i class="fas fa-${item.icon}"></i></div>
+      <div><div class="rec-txt">${item.text}</div></div>
+    </div>
+  `).join('');
+}
+
+// ═══════════════════════════════
+// RECOMMENDATIONS TABS
+// ═══════════════════════════════
+function rTab(btn, id) {
+  document.querySelectorAll('.rc-p').forEach(x => x.style.display = 'none');
+  document.querySelectorAll('#p-recommendations .tab').forEach(x => x.classList.remove('on'));
+  document.getElementById('rc-' + id).style.display = 'block'; btn.classList.add('on');
+}
+
+// ═══════════════════════════════
+// AI CHAT
+// ═══════════════════════════════
+const KB = [
+  { keys:['blight','tomato blight','leaf blight'], en:"Tomato blight is caused by *Phytophthora infestans*. Apply mancozeb or copper-based fungicide every 7 days. Remove and destroy infected leaves. Avoid overhead watering. Crop rotation is key for long-term prevention." },
+  { keys:['spot','leaf spot','brown spot'], en:"Leaf spot diseases are typically fungal. Apply copper fungicide weekly. Ensure good air circulation between plants. Avoid wetting foliage during irrigation. Remove spotted leaves promptly." },
+  { keys:['yellow','yellowing','curl'], en:"Yellowing leaves can indicate Yellow Leaf Curl Virus (spread by whiteflies), nitrogen deficiency, or overwatering. Check for whiteflies first. If absent, test soil nitrogen levels and consider foliar feeding." },
+  { keys:['powder','mildew','powdery'], en:"Powdery Mildew appears as white powder on leaves. Spray sulfur-based or bicarbonate fungicide every 7 days. Improve air circulation. Avoid excess nitrogen fertilizer which promotes lush growth susceptible to mildew." },
+  { keys:['wilt','fusarium','droop'], en:"Fusarium wilt is soil-borne — there's no chemical cure once a plant is infected. Remove affected plants immediately. Solarize soil before replanting. Use resistant varieties next season." },
+  { keys:['rust','orange','brown'], en:"Leaf rust spreads rapidly in humid conditions. Apply triazole fungicides (propiconazole, tebuconazole) at first sign. Remove heavily infected leaves. Avoid overhead irrigation." },
+  { keys:['irrigat','water','moisture'], en:"Irrigate early morning so leaves dry before evening, reducing fungal risk. Drip irrigation is ideal — keeps foliage dry. Target soil moisture between 20–30% for most vegetables. Check moisture every 2 days during dry spells." },
+  { keys:['fertiliz','nutrient','npk'], en:"A balanced NPK fertilizer (10-10-10) works well for general use. For leafy growth, increase nitrogen (N). For fruiting, boost phosphorus (P) and potassium (K). Apply based on soil test results for best results." },
+  { keys:['neem','organic','eco'], en:"Neem oil (5ml/litre + 1ml soap) every 10 days is effective against most pests and mild fungal infections. It's safe for beneficial insects if applied in the evening. Compost tea is a great complementary organic fertilizer." },
+  { keys:['rain','rainfall','weather','flood'], en:"After heavy rain, inspect fields for waterlogging. Improve drainage channels. Avoid pesticide application 12 hours before or after rain. Watch for increased fungal disease risk in the following 3–5 days." },
+  { keys:['rotation','crop rotation'], en:"Rotate crops every 2–3 seasons. Avoid planting the same family in the same field (e.g. tomato and potato are both Solanaceae). Legumes like beans fix nitrogen and are excellent rotation crops." },
+  { keys:['harvest','yield'], en:"Optimal harvest timing varies by crop. For tomatoes, harvest when 70% red. For wheat, harvest at 14% grain moisture. Delayed harvest increases disease and pest damage risk." },
+];
+
+function aiRespond(msg) {
+  const lower = msg.toLowerCase();
+  for (const entry of KB) {
+    if (entry.keys.some(k => lower.includes(k))) return entry.en;
+  }
+  return "That's a great farming question! For best results, I'd recommend consulting your local agricultural extension office. In the meantime, regular field scouting, maintaining soil health, and timely irrigation are universally beneficial practices.";
+}
+
+function appendMsg(text, cls) {
+  const box = document.getElementById('chatMsgs');
+  const d = document.createElement('div'); d.className = 'msg ' + cls;
+  // Render basic markdown: **bold**, *italic*, bullet lists, section headers
+  if (cls.includes('msg-a') && !cls.includes('typing')) {
+    d.innerHTML = formatChatMarkdown(text);
+  } else {
+    d.textContent = text;
+  }
+  box.appendChild(d); box.scrollTop = box.scrollHeight;
+  return d;
+}
+
+function formatChatMarkdown(text) {
+  return text
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    // Bold section headers like "Symptoms:", "Treatment:"
+    .replace(/^(Symptoms|Causes|Prevention|Treatment|Summary|Note|Warning):/gm, '<strong>$1:</strong>')
+    // **bold**
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    // *italic*
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // bullet points: lines starting with - or •
+    .replace(/^[-•]\s+(.+)$/gm, '<li>$1</li>')
+    // wrap consecutive <li> in <ul>
+    .replace(/(<li>.*<\/li>\n?)+/g, m => `<ul style="margin:6px 0 6px 16px;padding:0;">${m}</ul>`)
+    // double newline → paragraph break
+    .replace(/\n{2,}/g, '<br><br>')
+    // single newline
+    .replace(/\n/g, '<br>');
+}
+
+// Chat conversation history (last 6 messages for context)
+let chatHistory = [];
+
+async function sendMsg() {
+  const inp = document.getElementById('chatInput');
+  const msg = inp.value.trim(); if (!msg) return;
+  appendMsg(msg, 'msg-u'); inp.value = '';
+
+  const typing = document.createElement('div');
+  typing.className = 'msg msg-a typing';
+  typing.innerHTML = '<i class="fas fa-circle-notch fa-spin" style="margin-right:6px;"></i>Thinking...';
+  document.getElementById('chatMsgs').appendChild(typing);
+  document.getElementById('chatMsgs').scrollTop = 99999;
+
+  try {
+    const payload = {
+      message: msg,
+      history: chatHistory,
+      crop:    currentDiagnosisContext?.crop    || '',
+      disease: currentDiagnosisContext?.disease || ''
+    };
+
+    const res = await fetch(`${API_BASE}/api/v1/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!res.ok) throw new Error(`Server error ${res.status}`);
+    const data = await res.json();
+    const reply = data.reply || data.response || data.message || 'No response from server.';
+
+    // Update history for next turn
+    chatHistory.push({ role: 'user', content: msg });
+    chatHistory.push({ role: 'assistant', content: reply });
+    if (chatHistory.length > 12) chatHistory = chatHistory.slice(-12);
+
+    typing.className = 'msg msg-a';
+    typing.innerHTML = formatChatMarkdown(reply);
+  } catch(e) {
+    typing.className = 'msg msg-a';
+    typing.innerHTML = formatChatMarkdown(aiRespond(msg));
+  }
+  document.getElementById('chatMsgs').scrollTop = 99999;
+}
+function quickMsg(m) { document.getElementById('chatInput').value = m; sendMsg(); }
+function clearChat() {
+  chatHistory = [];
+  const box = document.getElementById('chatMsgs');
+  box.innerHTML = '<div class="msg msg-a">Chat cleared. How can I help you today? 🌱</div>';
+  showToast('Chat cleared','ok');
+}
+
+// Update quick message buttons to reflect diagnosed crop
+function updateChatQuickButtons() {
+  const crop    = currentDiagnosisContext?.crop;
+  const disease = currentDiagnosisContext?.disease;
+  const isHealthy = (currentDiagnosisContext?.severity || '').toLowerCase() === 'none'
+                 || (disease || '').toLowerCase().includes('healthy');
+  const container = document.querySelector('#p-chat .scroll-x');
+  if (!container) return;
+
+  if (crop && disease && !isHealthy) {
+    container.innerHTML = `
+      <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('What are the symptoms of ${disease}?')">🔍 Symptoms</button>
+      <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('How do I treat ${disease} in ${crop}?')">💊 Treatment</button>
+      <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('How can I prevent ${disease} from spreading?')">🛡️ Prevention</button>
+      <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('Is ${disease} contagious to nearby plants?')">🌿 Spread Risk</button>
+    `;
+  } else if (crop && isHealthy) {
+    container.innerHTML = `
+      <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('What are common diseases in ${crop}?')">⚠️ Common Diseases</button>
+      <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('How do I keep my ${crop} healthy?')">🌱 Care Tips</button>
+      <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('When should I irrigate ${crop}?')">💧 Irrigation</button>
+      <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('What fertilizer is best for ${crop}?')">🧪 Fertilizer</button>
+    `;
+  } else {
+    container.innerHTML = `
+      <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('How to prevent tomato blight?')">🍅 Tomato Blight</button>
+      <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('What causes yellow leaves?')">🌿 Yellow Leaves</button>
+      <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('When should I irrigate?')">💧 Irrigation Tips</button>
+      <button class="btn btn-ghost btn-sm" style="white-space:nowrap;" onclick="quickMsg('What fertilizer should I use?')">🧪 Fertilizer</button>
+    `;
+  }
+}
+document.getElementById('chatInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMsg(); });
+
+
+// ═══════════════════════════════════════
+// ═══════════════════════════════
+// MAP
+// ═══════════════════════════════
+let leafletMap = null;
+let _mapMarkers = []; // track all layer refs for re-styling
+
+// All 11 dataset crops — 2 real Indian growing regions each
+// cropKey matches crop names returned by the backend
+const FIELD_DATA = [
+  // Apple
+  { cropKey:'Apple',      lat:32.2190, lng:77.1890, region:'Himachal Pradesh', regionIdx:1, emoji:'🍎', area:'4 ha',  baseHealth:85, desc:'Major apple belt. Cool climate, monitor for scab in wet spells.' },
+  { cropKey:'Apple',      lat:34.0837, lng:74.7973, region:'Kashmir Valley',   regionIdx:2, emoji:'🍎', area:'6 ha',  baseHealth:80, desc:'High-altitude orchards. Cedar apple rust risk in spring.' },
+  // Cherry
+  { cropKey:'Cherry',     lat:33.7782, lng:75.3412, region:'Anantnag, J&K',   regionIdx:1, emoji:'🍒', area:'3 ha',  baseHealth:88, desc:'Sour cherry cultivation. Powdery mildew risk in humid periods.' },
+  { cropKey:'Cherry',     lat:31.1048, lng:77.1734, region:'Shimla, HP',       regionIdx:2, emoji:'🍒', area:'2 ha',  baseHealth:82, desc:'Sweet cherry orchards. Monitor for fungal infections post-rain.' },
+  // Corn
+  { cropKey:'Corn',       lat:30.9010, lng:75.8573, region:'Punjab',           regionIdx:1, emoji:'🌽', area:'10 ha', baseHealth:78, desc:'Kharif maize belt. Gray leaf spot risk in humid conditions.' },
+  { cropKey:'Corn',       lat:22.7196, lng:75.8577, region:'Madhya Pradesh',   regionIdx:2, emoji:'🌽', area:'12 ha', baseHealth:74, desc:'Central India maize. Northern leaf blight observed in late season.' },
+  // Grape
+  { cropKey:'Grape',      lat:20.0059, lng:74.7476, region:'Nashik, MH',       regionIdx:1, emoji:'🍇', area:'7 ha',  baseHealth:70, desc:'India\'s wine grape capital. Black rot risk after monsoon.' },
+  { cropKey:'Grape',      lat:13.6288, lng:74.6932, region:'Udupi, Karnataka', regionIdx:2, emoji:'🍇', area:'4 ha',  baseHealth:65, desc:'Coastal vineyard. High humidity — black measles risk.' },
+  // Orange
+  { cropKey:'Orange',     lat:21.1458, lng:79.0882, region:'Nagpur, MH',       regionIdx:1, emoji:'🍊', area:'8 ha',  baseHealth:76, desc:'Nagpur orange belt. Citrus greening (HLB) monitoring active.' },
+  { cropKey:'Orange',     lat:15.3647, lng:75.1240, region:'Dharwad, KA',      regionIdx:2, emoji:'🍊', area:'5 ha',  baseHealth:71, desc:'Mandarin cultivation. Psyllid vector control in progress.' },
+  // Peach
+  { cropKey:'Peach',      lat:30.7333, lng:76.7794, region:'Chandigarh foothills', regionIdx:1, emoji:'🍑', area:'3 ha', baseHealth:83, desc:'Sub-montane peach orchards. Bacterial spot risk in wet weather.' },
+  { cropKey:'Peach',      lat:32.0998, lng:76.2691, region:'Kangra, HP',       regionIdx:2, emoji:'🍑', area:'2 ha',  baseHealth:79, desc:'Hill peach cultivation. Monitor for stone fruit diseases.' },
+  // Pepper
+  { cropKey:'Pepper',     lat:11.8745, lng:75.3704, region:'Wayanad, Kerala',  regionIdx:1, emoji:'🌶️', area:'5 ha',  baseHealth:68, desc:'Black pepper capital of India. Bacterial spot risk in monsoon.' },
+  { cropKey:'Pepper',     lat:12.9716, lng:77.5946, region:'Coorg, Karnataka', regionIdx:2, emoji:'🌶️', area:'4 ha',  baseHealth:72, desc:'Spice plantation region. High humidity — fungal monitoring needed.' },
+  // Potato
+  { cropKey:'Potato',     lat:26.8467, lng:80.9462, region:'Uttar Pradesh',    regionIdx:1, emoji:'🥔', area:'9 ha',  baseHealth:66, desc:'Major potato belt. Early blight common in winter crop.' },
+  { cropKey:'Potato',     lat:22.5726, lng:88.3639, region:'West Bengal',      regionIdx:2, emoji:'🥔', area:'7 ha',  baseHealth:61, desc:'Hooghly district potato farms. Late blight risk in cool, wet weather.' },
+  // Squash
+  { cropKey:'Squash',     lat:26.9124, lng:75.7873, region:'Rajasthan',        regionIdx:1, emoji:'🎃', area:'4 ha',  baseHealth:77, desc:'Cucurbit cultivation. Powdery mildew common in dry-hot conditions.' },
+  { cropKey:'Squash',     lat:17.3850, lng:78.4867, region:'Telangana',        regionIdx:2, emoji:'🎃', area:'3 ha',  baseHealth:73, desc:'Summer squash fields. Monitor for mildew after irrigation.' },
+  // Strawberry
+  { cropKey:'Strawberry', lat:17.9307, lng:73.6477, region:'Mahabaleshwar, MH',regionIdx:1, emoji:'🍓', area:'2 ha',  baseHealth:81, desc:'India\'s strawberry hub. Leaf scorch risk in warm, dry spells.' },
+  { cropKey:'Strawberry', lat:12.2958, lng:76.6394, region:'Mysuru, Karnataka',regionIdx:2, emoji:'🍓', area:'2 ha',  baseHealth:78, desc:'Plateau strawberry farms. Good drainage reduces disease risk.' },
+  // Tomato
+  { cropKey:'Tomato',     lat:15.9129, lng:79.7400, region:'Andhra Pradesh',   regionIdx:1, emoji:'🍅', area:'6 ha',  baseHealth:55, desc:'Major tomato growing belt. Leaf blight and mold risk high.' },
+  { cropKey:'Tomato',     lat:18.5204, lng:73.8567, region:'Pune, MH',         regionIdx:2, emoji:'🍅', area:'5 ha',  baseHealth:60, desc:'Kharif tomato. Bacterial spot and early blight monitoring active.' },
+];
+
+// Severity → color mapping
+function sevColor(sev) {
+  if (!sev) return '#6ecb63';
+  const s = sev.toLowerCase();
+  if (s === 'high')   return '#e05555';
+  if (s === 'medium' || s === 'moderate') return '#c9a84c';
+  if (s === 'none')   return '#6ecb63';
+  return '#6ecb63';
+}
+
+async function initMap() {
+  if (leafletMap) return;
+  leafletMap = L.map('map', { zoomControl: true }).setView([22.5, 78.5], 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom: 18
+  }).addTo(leafletMap);
+  // Let the DOM finish painting before sizing
+  setTimeout(() => { leafletMap.invalidateSize(); renderMapMarkers(); }, 120);
+}
+
+function renderMapMarkers() {
+  if (!leafletMap) return;
+  _mapMarkers.forEach(l => leafletMap.removeLayer(l));
+  _mapMarkers = [];
+
+  // Active crop — from current diagnosis context or analytics dropdown
+  const activeCrop = (
+    currentDiagnosisContext?.crop ||
+    document.getElementById('analyticsCrop')?.value ||
+    ''
+  ).trim().toLowerCase();
+
+  // Build detected crop→severity map from user logs
+  const logs = getLog(currentUser?.username);
+  const detectedCrops = {};
+  logs.forEach(e => {
+    const ck = (e.crop || '').trim();
+    if (!ck) return;
+    const rank = s => s === 'High' ? 3 : (s === 'Moderate' || s === 'Medium') ? 2 : 1;
+    const existing = detectedCrops[ck];
+    if (!existing || rank(e.severity) > rank(existing.severity)) {
+      detectedCrops[ck] = { severity: e.severity, disease: e.disease };
+    }
+  });
+
+  // Filter to active crop only if one is selected; otherwise show all
+  const visibleFields = activeCrop
+    ? FIELD_DATA.filter(f => f.cropKey.toLowerCase() === activeCrop)
+    : FIELD_DATA;
+
+  // Fit map to visible fields
+  if (visibleFields.length) {
+    const bounds = L.latLngBounds(visibleFields.map(f => [f.lat, f.lng]));
+    leafletMap.fitBounds(bounds.pad(0.4));
+  }
+
+  visibleFields.forEach((f, i) => {
+    const detected  = detectedCrops[f.cropKey];
+    const isDetected = !!detected;
+    const sev    = detected?.severity || 'Low';
+    const color  = isDetected ? sevColor(sev) : '#6ecb63';
+    const opacity = isDetected ? 0.45 : 0.25;
+    const health = isDetected
+      ? Math.max(10, f.baseHealth - (sev === 'High' ? 30 : (sev === 'Moderate' || sev === 'Medium') ? 15 : 0))
+      : f.baseHealth;
+
+    const circle = L.circle([f.lat, f.lng], {
+      radius: 9000, color, fillColor: color, fillOpacity: opacity, weight: 2
+    }).addTo(leafletMap);
+
+    const marker = L.marker([f.lat, f.lng]).addTo(leafletMap);
+
+    const detectedLine = isDetected
+      ? `<b>Last Detection:</b> ${detected.disease || 'Disease detected'}<br><b>Severity:</b> <span style="color:${color};font-weight:700;">${sev}</span><br>`
+      : `<span style="color:#aaa;font-size:.78rem;">No detection logged yet.</span><br>`;
+
+    const popup = `
+      <div style="min-width:190px;font-family:sans-serif;font-size:.85rem;">
+        <b style="font-size:.95rem;">${f.emoji} ${f.cropKey} — R${f.regionIdx}</b><br>
+        <span style="color:#888;font-size:.78rem;">${f.region}</span><br><br>
+        ${detectedLine}
+        <b>Area:</b> ${f.area}<br>
+        <b>Health Score:</b> ${health}%<br>
+        <hr style="margin:6px 0;border-color:#ddd;">
+        <span style="font-size:.75rem;color:#666;">${f.desc}</span>
+      </div>`;
+    circle.bindPopup(popup);
+    marker.bindPopup(popup);
+    _mapMarkers.push(circle, marker);
+  });
+
+  renderMapButtons(detectedCrops, activeCrop);
+}
+
+function renderMapButtons(detectedCrops, activeCrop) {
+  const box = document.getElementById('mapFieldBtns');
+  if (!box) return;
+  box.innerHTML = '';
+
+  // Fields to show buttons for
+  const fields = activeCrop
+    ? FIELD_DATA.map((f, i) => ({ ...f, idx: i })).filter(f => f.cropKey.toLowerCase() === activeCrop)
+    : FIELD_DATA.map((f, i) => ({ ...f, idx: i }));
+
+  if (!fields.length) {
+    box.innerHTML = '<span style="font-size:.78rem;color:var(--muted2);">No regions for this crop.</span>';
+    return;
+  }
+
+  fields.forEach(f => {
+    const isDetected = !!detectedCrops[f.cropKey];
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-ghost btn-sm';
+    if (!isDetected) btn.style.opacity = '0.5';
+    btn.title = f.region;
+    btn.innerHTML = `<i class="fas fa-crosshairs"></i> ${f.emoji} ${f.cropKey} R${f.regionIdx}`;
+    btn.onclick = () => flyToFieldIdx(f.idx);
+    box.appendChild(btn);
+  });
+}
+
+function flyToFieldIdx(idx) {
+  const f = FIELD_DATA[idx];
+  if (!f || !leafletMap) return;
+  leafletMap.flyTo([f.lat, f.lng], 10, { animate: true, duration: 1.2 });
+  showToast(f.emoji + ' ' + f.cropKey + ' — ' + f.region, 'ok');
+}
+
+function clearMapFilter() {
+  // Clear diagnosis context crop so map shows all
+  if (currentDiagnosisContext) currentDiagnosisContext.crop = null;
+  const contextInfo = document.getElementById('mapContextInfo');
+  if (contextInfo) contextInfo.style.display = 'none';
+  leafletMap.setView([22.5, 78.5], 5);
+  renderMapMarkers();
+  showToast('Showing all crop regions', 'ok');
+}
+
+function refreshMap() {
+  if (leafletMap) {
+    leafletMap.invalidateSize();
+    renderMapMarkers();
+  }
+  showToast('Map refreshed', 'ok');
+}
+
+// ═══════════════════════════════
+// ANALYTICS CHARTS
+// ═══════════════════════════════
+let charts = {};
+function destroyCharts() {
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e){} });
+  charts = {};
+}
+
+// Load data from API - with dynamic crop context
+async function loadAnalyticsData(period = '6m') {
+  try {
+    const params = new URLSearchParams({ period });
+    if (currentDiagnosisContext.crop) {
+      params.append('crop', currentDiagnosisContext.crop);
+    }
+    
+    const res = await fetch(`${API_BASE}/api/v1/analytics/rainfall?${params}`);
+    if (!res.ok) throw new Error('Failed to load analytics');
+    const data = await res.json();
+    
+    // Show context info if available
+    if (data.crop) {
+      showToast(`Analytics for ${data.crop}`, 'ok');
+    }
+    
+    return data;
+  } catch(e) {
+    // Fallback data
+    const DATA = {
+      '6m': { rain:[50,70,40,60,90,30], labels:['Jan','Feb','Mar','Apr','May','Jun'], moisture:[22,28,18,24,32,19] },
+      '3m': { rain:[60,90,30], labels:['Apr','May','Jun'], moisture:[24,32,19] },
+      '1y': { rain:[40,55,70,45,60,80,40,55,90,30,45,65], labels:['J','F','M','A','M','J','J','A','S','O','N','D'], moisture:[20,22,28,18,24,32,19,22,28,21,18,20] },
+    };
+    return DATA[period] || DATA['6m'];
+  }
+}
+
+// Load disease trend data - with dynamic context
+async function loadDiseaseTrendData() {
+  try {
+    const params = new URLSearchParams();
+    if (currentDiagnosisContext.crop) {
+      params.append('crop', currentDiagnosisContext.crop);
+    }
+    if (currentDiagnosisContext.disease) {
+      params.append('disease', currentDiagnosisContext.disease);
+    }
+    
+    const res = await fetch(`${API_BASE}/api/v1/analytics/disease-trend?${params}`);
+    if (!res.ok) throw new Error('Failed to load disease trend');
+    return await res.json();
+  } catch(e) {
+    return {
+      labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+      data: [12, 19, 8, 15],
+      title: 'Disease Trend'
+    };
+  }
+}
+
+// Build analytics data from the user's saved detection logs
+// mode: 'all' = general across all crops, 'crop' = filtered to one crop
+function buildAnalyticsFromLogs() {
+  const entries  = getLog(currentUser?.username);
+  const now      = Date.now();
+  const range    = document.getElementById('analyticsRange')?.value || '6m';
+  const cropFilter = (document.getElementById('analyticsCrop')?.value || '').trim();
+  const cutoffDays = range === '3m' ? 90 : range === '1y' ? 365 : 180;
+  const cutoff   = now - cutoffDays * 24 * 60 * 60 * 1000;
+  const allRecent = entries.filter(e => e.savedAt >= cutoff);
+
+  // Filter by selected crop if one is chosen
+  const recent = cropFilter
+    ? allRecent.filter(e => (e.crop || '').toLowerCase() === cropFilter.toLowerCase())
+    : allRecent;
+
+  // ── Stats ──
+  const total    = recent.length;
+  const healthy  = recent.filter(e =>
+    (e.severity || '').toLowerCase() === 'none' ||
+    (e.disease  || '').toLowerCase().includes('healthy')
+  ).length;
+  const healthPct    = total > 0 ? Math.round((healthy / total) * 100) : (cropFilter ? 100 : 100);
+  const treatments   = recent.filter(e => (e.severity || '').toLowerCase() !== 'none').length;
+
+  document.getElementById('statCases').textContent      = total || (cropFilter ? 0 : allRecent.length);
+  document.getElementById('statHealth').textContent     = healthPct + '%';
+  document.getElementById('statTreatments').textContent = treatments;
+
+  // Rainfall from API
+  fetch(`${API_BASE}/api/v1/analytics/rainfall?period=${range}${cropFilter ? '&crop=' + encodeURIComponent(cropFilter) : ''}`)
+    .then(r => r.json())
+    .then(d => {
+      const rain = d.rainfall || d.rain || [];
+      const avg  = rain.length ? Math.round(rain.reduce((a,b)=>a+b,0)/rain.length) : '—';
+      document.getElementById('statRainfall').textContent = avg;
+    })
+    .catch(() => { document.getElementById('statRainfall').textContent = '—'; });
+
+  // ── Disease spread chart data ──
+  let diseaseLabels, diseaseVals, chartTitle;
+
+  if (cropFilter) {
+    // Show weekly trend for this specific crop from actual logs
+    const regions = FIELD_DATA.filter(f => f.cropKey.toLowerCase() === cropFilter.toLowerCase());
+    const emoji   = regions[0]?.emoji || '';
+
+    // Build 4-week counts from real log data
+    const wkCounts = buildWeekCounts(recent, now);
+    const weekLabels = ['3 weeks ago','2 weeks ago','Last week','This week'];
+
+    if (wkCounts.some(v => v > 0)) {
+      diseaseLabels = weekLabels;
+      diseaseVals   = wkCounts;
+      chartTitle    = `${emoji} ${cropFilter} — Weekly Detections`;
+    } else if (regions.length) {
+      // No logs yet — show region breakdown with 0s so chart is honest
+      diseaseLabels = regions.map(f => `${emoji} ${f.cropKey} R${f.regionIdx}`);
+      diseaseVals   = regions.map(() => 0);
+      chartTitle    = `${emoji} ${cropFilter} — No detections yet`;
+    } else {
+      diseaseLabels = weekLabels;
+      diseaseVals   = [0, 0, 0, 0];
+      chartTitle    = `${cropFilter} — No detections yet`;
+    }
+  } else {
+    // General: group all logs by crop — real counts only
+    const cropCounts = {};
+    allRecent.forEach(e => {
+      const c = e.crop || 'Unknown';
+      cropCounts[c] = (cropCounts[c] || 0) + 1;
+    });
+    if (Object.keys(cropCounts).length) {
+      diseaseLabels = Object.keys(cropCounts);
+      diseaseVals   = Object.values(cropCounts);
+    } else {
+      // No logs at all — show empty state
+      diseaseLabels = ['No detections yet'];
+      diseaseVals   = [0];
+    }
+    chartTitle = 'Disease Detections by Crop';
+  }
+
+  // Update chart title label
+  const titleEl = document.getElementById('diseaseChartTitle');
+  if (titleEl) titleEl.textContent = chartTitle;
+
+  // ── Crop distribution pie ──
+  let pieLabels, pieVals;
+  if (cropFilter) {
+    // Show severity breakdown for this crop from logs
+    const sevCounts = { High:0, Moderate:0, Low:0, Healthy:0 };
+    recent.forEach(e => {
+      const s = (e.severity || '').toLowerCase();
+      if (s === 'high') sevCounts.High++;
+      else if (s === 'moderate' || s === 'medium') sevCounts.Moderate++;
+      else if (s === 'none' || (e.disease||'').toLowerCase().includes('healthy')) sevCounts.Healthy++;
+      else sevCounts.Low++;
+    });
+    const nonZero = Object.entries(sevCounts).filter(([,v]) => v > 0);
+    if (nonZero.length) {
+      pieLabels = nonZero.map(([k]) => k);
+      pieVals   = nonZero.map(([,v]) => v);
+    } else {
+      pieLabels = ['No detections'];
+      pieVals   = [1];
+    }
+  } else {
+    const cropCounts = {};
+    allRecent.forEach(e => { const c = e.crop||'Unknown'; cropCounts[c]=(cropCounts[c]||0)+1; });
+    if (Object.keys(cropCounts).length) {
+      pieLabels = Object.keys(cropCounts);
+      pieVals   = Object.values(cropCounts);
+    } else {
+      pieLabels = ['No data'];
+      pieVals   = [1];
+    }
+  }
+
+  // Weekly counts helper used above
+  function buildWeekCounts(arr, now) {
+    const wk = [0,0,0,0];
+    arr.forEach(e => {
+      const d = Math.floor((now - e.savedAt) / (7*24*60*60*1000));
+      if (d < 4) wk[3-d]++;
+    });
+    return wk;
+  }
+
+  const weekCounts = buildWeekCounts(recent, now);
+  return { diseaseLabels, diseaseVals, pieLabels, pieVals, weekCounts, recent, cropFilter };
+}
+
+async function initCharts() {
+  const isDark = document.documentElement.getAttribute('data-theme') !== 'light';
+  const tc = isDark ? 'rgba(238,232,216,0.42)' : 'rgba(26,46,26,0.5)';
+  const gc = isDark ? 'rgba(238,232,216,0.06)' : 'rgba(26,46,26,0.08)';
+  Chart.defaults.color = tc;
+  Chart.defaults.borderColor = gc;
+
+  const range      = document.getElementById('analyticsRange')?.value || '6m';
+  const cropFilter = document.getElementById('analyticsCrop')?.value || '';
+  const { diseaseLabels, diseaseVals, pieLabels, pieVals } = buildAnalyticsFromLogs();
+
+  // Rainfall + moisture from API
+  let rainfallLabels = ['Jan','Feb','Mar','Apr','May','Jun'];
+  let rainfallData   = [50,70,40,60,90,30];
+  let moistureData   = [22,28,18,24,32,19];
+  try {
+    const params = new URLSearchParams({ period: range });
+    if (cropFilter) params.append('crop', cropFilter);
+    const res = await fetch(`${API_BASE}/api/v1/analytics/rainfall?${params}`);
+    if (res.ok) {
+      const d = await res.json();
+      rainfallLabels = d.labels   || rainfallLabels;
+      rainfallData   = d.rainfall || d.rain || rainfallData;
+      moistureData   = d.moisture || moistureData;
+    }
+  } catch(e) {}
+
+  charts.rain = new Chart(document.getElementById('rainfallChart'), {
+    type:'line', data:{
+      labels: rainfallLabels,
+      datasets:[{ label:'Rainfall (mm)', data:rainfallData, borderColor:'#7ecfe0', backgroundColor:'rgba(126,207,224,.1)', borderWidth:2.5, tension:.4, fill:true, pointBackgroundColor:'#7ecfe0', pointRadius:4 }]
+    }, options:{ responsive:true, plugins:{legend:{display:false}} }
+  });
+
+  const barColors = ['rgba(220,60,60,.7)','rgba(201,168,76,.7)','rgba(110,203,99,.7)','rgba(126,207,224,.7)','rgba(180,120,220,.7)','rgba(255,180,50,.7)'];
+  charts.disease = new Chart(document.getElementById('diseaseChart'), {
+    type:'bar', data:{
+      labels: diseaseLabels,
+      datasets:[{
+        label:'Detections',
+        data: diseaseVals,
+        backgroundColor: diseaseLabels.map((_,i) => barColors[i % barColors.length]),
+        borderRadius:8
+      }]
+    }, options:{ responsive:true, plugins:{legend:{display:false}} }
+  });
+
+  charts.moisture = new Chart(document.getElementById('moistureChart'), {
+    type:'line', data:{
+      labels: rainfallLabels,
+      datasets:[{ label:'Moisture %', data:moistureData, borderColor:'#6ecb63', backgroundColor:'rgba(110,203,99,.1)', borderWidth:2, tension:.4, fill:true, pointRadius:3 }]
+    }, options:{ responsive:true, plugins:{legend:{display:false}} }
+  });
+
+  const pieColors = ['rgba(220,60,60,.75)','rgba(201,168,76,.75)','rgba(110,203,99,.75)','rgba(126,207,224,.75)','rgba(180,120,220,.75)','rgba(255,180,50,.75)'];
+  charts.crop = new Chart(document.getElementById('cropChart'), {
+    type:'doughnut', data:{
+      labels: pieLabels,
+      datasets:[{ data:pieVals, backgroundColor:pieLabels.map((_,i)=>pieColors[i%pieColors.length]), borderWidth:0 }]
+    }, options:{ responsive:true, cutout:'65%', plugins:{legend:{position:'bottom'}} }
+  });
+
+  loadAnalyticsInsights();
+  chartsDone = true;
+}
+
+async function loadAnalyticsInsights() {
+  const card = document.getElementById('analyticsInsightCard');
+  const txt  = document.getElementById('analyticsInsightText');
+  if (!card || !txt) return;
+
+  // Only show when a real diagnosis has been made — needs both crop AND disease from context
+  const crop    = currentDiagnosisContext?.crop || '';
+  const disease = currentDiagnosisContext?.disease || '';
+  const severity = currentDiagnosisContext?.severity || '';
+  const isHealthy = disease.toLowerCase().includes('healthy') || severity.toLowerCase() === 'none';
+
+  if (!crop || !disease) {
+    card.style.display = 'none';
+    return;
+  }
+
+  card.style.display = 'block';
+
+  // Build a specific title so the user knows exactly what the insight is about
+  const insightTitle = isHealthy
+    ? `${crop} — Healthy Plant Care`
+    : `${crop} — ${disease} (${severity} severity)`;
+  document.querySelector('#analyticsInsightCard .stitle').innerHTML =
+    `<i class="fas fa-brain"></i> AI Insight: ${insightTitle}`;
+
+  txt.textContent = '⏳ Generating insight...';
+
+  try {
+    const params = new URLSearchParams();
+    params.append('crop', crop);
+    params.append('disease', disease);
+    // Pass severity so the backend can tailor the response
+    if (severity) params.append('severity', severity);
+    const res  = await fetch(`${API_BASE}/api/v1/analytics/insights?${params}`);
+    const data = await res.json();
+    txt.textContent = data.insight || 'No insights available.';
+  } catch(e) {
+    txt.textContent = 'Could not load AI insights — check server connection.';
+  }
+}
+
+function updateCharts() {
+  if (!chartsDone) return;
+  destroyCharts();
+  chartsDone = false;
+  initCharts();
+}
+
+// ═══════════════════════════════
+// ALERTS
+// ═══════════════════════════════
+// ALERTS — dynamic, real-time, user-driven
+// ═══════════════════════════════
+let alertItems = [];
+let pendingDismissId = null;
+const DISMISSED_KEY = () => `sc360-dismissed-${currentUser?.username}`;
+
+function getDismissed() {
+  try { return JSON.parse(localStorage.getItem(DISMISSED_KEY()) || '[]'); } catch(e) { return []; }
+}
+function saveDismissed(ids) {
+  localStorage.setItem(DISMISSED_KEY(), JSON.stringify(ids));
+}
+
+function buildDynamicAlerts() {
+  const dismissed = getDismissed();
+  const alerts = [];
+  const now = Date.now();
+  const logs = getLog(currentUser?.username);
+  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+
+  // 1. Welcome alert — shown once per login session, dismissed on close
+  const welcomeId = 'welcome-' + currentUser?.username;
+  if (!dismissed.includes(welcomeId)) {
+    alerts.push({
+      id: welcomeId,
+      title: `Welcome back, ${(currentUser?.name || currentUser?.username || 'Farmer').split(' ')[0]}! 🌱`,
+      msg: `You're logged in to SmartCrop360. ${logs.length > 0 ? `You have ${logs.length} saved detection${logs.length > 1 ? 's' : ''} in your log.` : 'Start by scanning a crop leaf in the Disease Detection tab.'}`,
+      type: 'green',
+      severity: 'Info',
+      field: 'System',
+      time: 'Just now'
+    });
+  }
+
+  // 2. One alert per diagnosis — all logs within 7 days, each persists until dismissed or expired
+  const recentLogs = logs.filter(e => (now - e.savedAt) < sevenDays);
+  // Show newest first
+  [...recentLogs].reverse().forEach(e => {
+    const alertId = 'diag-' + e.savedAt;
+    if (dismissed.includes(alertId)) return;
+
+    const isHealthy = (e.disease || '').toLowerCase().includes('healthy')
+                   || (e.severity || '').toLowerCase() === 'none';
+    const sev = (e.severity || 'Low');
+    const sevColor = isHealthy ? 'green' : (sev === 'High' ? 'red' : sev === 'Moderate' ? 'yellow' : 'green');
+    const daysLeft = Math.ceil((sevenDays - (now - e.savedAt)) / (24 * 60 * 60 * 1000));
+
+    alerts.push({
+      id: alertId,
+      title: isHealthy
+        ? `✅ Healthy: ${e.crop || 'Plant'}`
+        : `⚠️ ${sev} Severity — ${e.disease || 'Disease Detected'}`,
+      msg: isHealthy
+        ? `${e.crop || 'Plant'} appears healthy (${e.confidence ? Math.round(e.confidence) + '% confidence' : ''}). Continue regular monitoring and preventive care.`
+        : `${e.crop || 'Plant'} diagnosed with ${e.disease || 'unknown disease'}. Confidence: ${e.confidence ? Math.round(e.confidence) + '%' : '—'}. ${e.recommendation ? e.recommendation.split('.')[0] + '.' : 'See View Treatment for full recommendations.'}`,
+      type: sevColor,
+      severity: isHealthy ? 'Healthy' : sev,
+      field: e.crop || 'Unknown Crop',
+      time: timeAgo(e.savedAt),
+      expiry: `Expires in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`
+    });
+  });
+
+  // 3. Stale scan reminder — if last detection was more than 3 days ago
+  if (logs.length > 0) {
+    const lastLog = logs[logs.length - 1];
+    const staleId = 'stale-' + Math.floor(lastLog.savedAt / (24*60*60*1000));
+    const daysSince = Math.floor((now - lastLog.savedAt) / (24*60*60*1000));
+    if (daysSince >= 3 && !dismissed.includes(staleId)) {
+      alerts.push({
+        id: staleId,
+        title: `🔍 Time for a Field Check`,
+        msg: `Your last scan was ${daysSince} day${daysSince > 1 ? 's' : ''} ago. Regular monitoring helps catch diseases early — scan a new leaf today.`,
+        type: 'yellow',
+        severity: 'Reminder',
+        field: 'System',
+        time: timeAgo(lastLog.savedAt)
+      });
+    }
+  }
+
+  return alerts;
+}
+
+function timeAgo(ts) {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)  return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function loadAlerts() {
+  alertItems = buildDynamicAlerts();
+  renderAlerts();
+}
+
+function renderAlerts() {
+  const c = document.getElementById('alertsBox');
+  const empty = document.getElementById('noAlerts');
+  c.innerHTML = '';
+  if (!alertItems.length) {
+    empty.style.display = 'block';
+    document.getElementById('alertBadge').style.display = 'none';
+    document.getElementById('notifCount').textContent = '0 Alerts';
+    return;
+  }
+  empty.style.display = 'none';
+  document.getElementById('alertBadge').style.display = '';
+  document.getElementById('notifCount').textContent = alertItems.length + ' Alert' + (alertItems.length !== 1 ? 's' : '');
+
+  alertItems.forEach((a, i) => {
+    const tc = a.type === 'red' ? 'alert-full-r' : a.type === 'yellow' ? 'alert-full-y' : 'alert-full-g';
+    const bt = a.type === 'red' ? 'badge-r' : a.type === 'yellow' ? 'badge-y' : 'badge-g';
+    const d = document.createElement('div');
+    d.className = `alert-full ${tc} sl`; d.style.animationDelay = (i * .1) + 's';
+    d.innerHTML = `
+      <div class="alert-full-header">
+        <div class="alert-full-title">${a.title}</div>
+        <button class="btn btn-ghost btn-sm" onclick="askDismiss('${a.id}')" style="padding:4px 10px;font-size:.72rem;"><i class="fas fa-times"></i> Dismiss</button>
+      </div>
+      <div class="alert-msg">${a.msg}</div>
+      <div class="alert-meta">
+        <span class="badge ${bt}">${a.severity}</span>
+        <span class="badge" style="background:var(--input-bg);color:var(--muted);">📍 ${a.field}</span>
+        <span class="badge" style="background:var(--input-bg);color:var(--muted);">🕐 ${a.time}</span>
+        ${a.expiry ? `<span class="badge" style="background:var(--input-bg);color:var(--muted);">⏳ ${a.expiry}</span>` : ''}
+      </div>`;
+    c.appendChild(d);
+  });
+}
+
+function askDismiss(id) { pendingDismissId = id; openModal('delModal'); }
+async function confirmDismiss() {
+  const dismissed = getDismissed();
+  if (!dismissed.includes(pendingDismissId)) dismissed.push(pendingDismissId);
+  saveDismissed(dismissed);
+  alertItems = alertItems.filter(a => a.id !== pendingDismissId);
+  renderAlerts(); closeModal('delModal');
+  showToast('Alert dismissed', 'ok');
+}
+function dismissAll() {
+  const dismissed = getDismissed();
+  alertItems.forEach(a => { if (!dismissed.includes(a.id)) dismissed.push(a.id); });
+  saveDismissed(dismissed);
+  alertItems = []; renderAlerts();
+  showToast('All alerts dismissed', 'ok');
+}
+
+// Rebuild alerts after a new diagnosis is saved
+function refreshAlerts() {
+  alertItems = buildDynamicAlerts();
+  renderAlerts();
+}
+
+// Load alerts on init — deferred until user is logged in
+
+
+// ═══════════════════════════════
+// SETTINGS
+// ═══════════════════════════════
+function settingChanged(name, val) { showToast(name + (val ? ' enabled' : ' disabled'), 'ok'); }
+
+function saveSettings() {
+  const region = document.getElementById('set-region')?.value;
+  const theme  = document.documentElement.getAttribute('data-theme');
+
+  if (region && currentUser) {
+    currentUser.region = region;
+    const session = JSON.parse(localStorage.getItem('sc360-session') || '{}');
+    session.region = region;
+    localStorage.setItem('sc360-session', JSON.stringify(session));
+    const users = getUsers();
+    if (users[currentUser.username]) {
+      users[currentUser.username].region = region;
+      saveUsers(users);
+    }
+  }
+  localStorage.setItem('sc360-theme', theme);
+  showToast('Settings saved!', 'ok');
+}
+
+function resetSettings() {
+  setTheme('dark');
+  const r = document.getElementById('set-region');
+  if (r) r.value = 'South India';
+  const l = document.getElementById('set-lang');
+  if (l) l.value = 'English';
+  const notif = document.getElementById('set-notif');
+  if (notif) notif.checked = true;
+  showToast('Settings reset to defaults', 'warn');
+}
+
+function loadSettingsFromUser() {
+  if (!currentUser) return;
+  const r = document.getElementById('set-region');
+  if (r && currentUser.region) {
+    // Set matching option, fallback to South India
+    const opt = Array.from(r.options).find(o => o.value === currentUser.region);
+    r.value = opt ? currentUser.region : 'South India';
+  }
+}
+
+// ═══════════════════════════════
+// TOAST NOTIFICATIONS
+// ═══════════════════════════════
+function showToast(msg, type = 'ok') {
+  const wrap = document.getElementById('toast');
+  const t = document.createElement('div');
+  const icon = type === 'ok' ? 'fa-check-circle' : type === 'warn' ? 'fa-exclamation-triangle' : 'fa-times-circle';
+  t.className = 'toast-item' + (type === 'warn' ? ' warn' : type === 'err' ? ' err' : '');
+  t.innerHTML = `<i class="fas ${icon}"></i><span>${msg}</span>`;
+  wrap.appendChild(t);
+  setTimeout(() => {
+    t.style.animation = 'toastOut .3s ease forwards';
+    setTimeout(() => t.remove(), 300);
+  }, 2800);
+}
+
+// ═══════════════════════════════
+// MODALS
+// ═══════════════════════════════
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-bg').forEach(m => m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); }));
+
+// ═══════════════════════════════
+// INIT
+// ═══════════════════════════════
+
+// ═══════════════════════════════════════
+// AUTH STATE & USER STORE
+// ═══════════════════════════════════════
+// API CONFIG — change API_BASE to match your FastAPI server
+// ═══════════════════════════════════════
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:8000'
+  : window.location.origin; // same origin when served by FastAPI
+
+let apiOnline = false;
+async function checkApiHealth() {
+  const dot = document.getElementById('apiStatusDot');
+  const lbl = document.getElementById('apiStatusLbl');
+  try {
+    const res = await fetch(`${API_BASE}/api/health`, { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      apiOnline = true;
+      if (dot) { dot.style.background = 'var(--leaf)'; dot.title = 'Backend connected'; }
+      if (lbl) lbl.textContent = 'API Online';
+      return;
+    }
+  } catch(e) {}
+  apiOnline = false;
+  if (dot) { dot.style.background = 'var(--rust)'; dot.title = 'Backend offline — using fallback'; }
+  if (lbl) lbl.textContent = 'API Offline';
+}
+checkApiHealth();
+setInterval(checkApiHealth, 30000); // re-check every 30s
+
+// ═══════════════════════════════
+// USER STORE — passwords hashed with SHA-256
+// ═══════════════════════════════
+let currentUser = null;
+function getUsers() { try { return JSON.parse(localStorage.getItem('sc360-users') || '{}'); } catch(e) { return {}; } }
+function saveUsers(u) { localStorage.setItem('sc360-users', JSON.stringify(u)); }
+
+async function hashPassword(pass) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pass));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+// Migrate any legacy plain-text passwords to hashed on first load
+async function migratePasswords() {
+  const users = getUsers();
+  let changed = false;
+  for (const key of Object.keys(users)) {
+    const u = users[key];
+    if (u.password && !u.passwordHash) {
+      u.passwordHash = await hashPassword(u.password);
+      delete u.password;
+      changed = true;
+    }
+  }
+  if (changed) saveUsers(users);
+}
+
+function showScreen(screen) {
+  const login  = document.getElementById('loginScreen');
+  const signup = document.getElementById('signupScreen');
+  login.style.display = 'none'; signup.style.display = 'none';
+  clearAuthErrors();
+  if (screen === 'login') {
+    login.style.display = 'flex';
+    login.querySelector('.auth-card').style.animation = 'none';
+    requestAnimationFrame(() => { login.querySelector('.auth-card').style.animation = ''; });
+  } else if (screen === 'signup') {
+    signup.style.display = 'flex';
+    signup.querySelector('.auth-card').style.animation = 'none';
+    requestAnimationFrame(() => { signup.querySelector('.auth-card').style.animation = ''; });
+  }
+}
+function clearAuthErrors() {
+  document.getElementById('loginErr').classList.remove('show');
+  document.getElementById('signupErr').classList.remove('show');
+}
+function showAuthErr(id, msg) {
+  document.getElementById(id + 'Msg').textContent = msg;
+  document.getElementById(id).classList.add('show');
+}
+
+async function doLogin() {
+  const userVal = document.getElementById('loginUser').value.trim();
+  const passVal = document.getElementById('loginPass').value;
+  if (!userVal || !passVal) { showAuthErr('loginErr', 'Please enter your username and password.'); return; }
+
+  const btn = document.getElementById('loginBtn');
+  btn.classList.add('loading'); btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Signing in...';
+  const resetBtn = () => { btn.classList.remove('loading'); btn.innerHTML = '<i class="fas fa-sign-in-alt"></i> Sign In'; };
+
+  const users  = getUsers();
+  const record = Object.values(users).find(u => u.username === userVal || u.email === userVal);
+  if (!record) { resetBtn(); showAuthErr('loginErr', 'No account found with that username or email.'); return; }
+
+  const hash = await hashPassword(passVal);
+  if (record.passwordHash !== hash) { resetBtn(); showAuthErr('loginErr', 'Incorrect password.'); return; }
+
+  const userObj = { username: record.username, name: record.name, email: record.email, region: record.region || 'South India' };
+  localStorage.setItem('sc360-session', JSON.stringify(userObj));
+  resetBtn();
+  enterApp(userObj);
+}
+
+async function doSignup() {
+  const name  = document.getElementById('signupName').value.trim();
+  const user  = document.getElementById('signupUser').value.trim();
+  const email = document.getElementById('signupEmail').value.trim();
+  const pass  = document.getElementById('signupPass').value;
+
+  if (!name || !user || !email || !pass) { showAuthErr('signupErr', 'Please fill in all fields.'); return; }
+  if (pass.length < 6)                   { showAuthErr('signupErr', 'Password must be at least 6 characters.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showAuthErr('signupErr', 'Please enter a valid email address.'); return; }
+
+  const btn = document.getElementById('signupBtn');
+  btn.classList.add('loading'); btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Creating account...';
+  const resetBtn = () => { btn.classList.remove('loading'); btn.innerHTML = '<i class="fas fa-seedling"></i> Create Account'; };
+  const clearForm = () => {
+    ['signupName','signupUser','signupEmail','signupPass'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('pwdBar').style.width = '0%';
+    document.getElementById('pwdLabel').textContent = 'Enter a password';
+  };
+
+  const users = getUsers();
+  if (users[user]) { resetBtn(); showAuthErr('signupErr', 'Username already taken.'); return; }
+  if (Object.values(users).find(u => u.email === email)) { resetBtn(); showAuthErr('signupErr', 'An account with that email already exists.'); return; }
+
+  const passwordHash = await hashPassword(pass);
+  const newUser = { username: user, name, email, passwordHash, region: 'South India' };
+  users[user] = newUser;
+  saveUsers(users);
+
+  showToast('Account created! Please sign in.', 'ok');
+  resetBtn(); clearForm();
+  setTimeout(() => showScreen('login'), 600);
+}
+
+function openProfileModal() {
+  const u = currentUser;
+  if (!u) return;
+  const rawName = (u.name && u.name !== u.username) ? u.name : formatUsername(u.username);
+  const initials = rawName !== '—' ? rawName.split(' ').filter(Boolean).map(w => w[0]).join('').slice(0,2).toUpperCase() : '?';
+  // Avatar — show initials in a styled span or fallback emoji
+  const avatarEl = document.getElementById('pmAvatar');
+  avatarEl.textContent = initials || rawName[0]?.toUpperCase() || '?';
+  // Format username into readable name: "hellojay" → "Hello Jay", "john_doe" → "John Doe"
+  function formatUsername(str) {
+    if (!str) return '—';
+    let s = str
+      .replace(/[_\-.]+/g, ' ')           // underscores/dashes/dots → spaces
+      .replace(/([a-z])([A-Z])/g, '$1 $2') // camelCase → camel Case
+      .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2'); // ABCDef → ABC Def
+    // If still one word (all lowercase, no separator found), add a space before
+    // the last apparent "surname" portion by finding digit or keeping as-is capitalized
+    s = s.trim();
+    if (!s.includes(' ') && s.length > 4) {
+      // Try to split on digit boundary: "vishal123" → "Vishal 123"
+      s = s.replace(/([a-zA-Z]+)([0-9]+)/, '$1 $2');
+    }
+    return s.split(' ').filter(Boolean)
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+      .join(' ').trim();
+  }
+  const displayName = (u.name && u.name !== u.username) ? u.name : formatUsername(u.username);
+  document.getElementById('pmName').textContent = displayName;
+  document.getElementById('pmRole').textContent    = (u.name && u.name !== u.username ? u.name : formatUsername(u.username)) + ' · Farmer';
+  document.getElementById('pmUsername').textContent = u.username || '—';
+  document.getElementById('pmEmail').textContent   = u.email    || '—';
+  document.getElementById('pmRegion').textContent  = u.region   || 'Not set';
+  openModal('profileModal');
+}
+
+function enterApp(user) {
+  currentUser = user;
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('signupScreen').style.display = 'none';
+  refreshProfileUI(user);
+  loadSettingsFromUser();
+  resetDetectionPanel();
+  renderDetectionHistory();
+  loadAlerts(); // build dynamic alerts now that currentUser is set
+  showToast('Welcome back, ' + (user.name || user.username).split(' ')[0] + '! 🌱', 'ok');
+}
+
+function resetDetectionPanel() {
+  // Clear file input so a new user never sees the previous user's image
+  const fi = document.getElementById('leafImage');
+  if (fi) fi.value = '';
+  // Reset preview
+  const prev = document.getElementById('preview');
+  if (prev) { prev.src = ''; prev.style.display = 'none'; }
+  const prevTxt = document.getElementById('prevTxt');
+  if (prevTxt) prevTxt.style.display = 'block';
+  // Reset result fields
+  const fields = { diseaseOutput: '—', confPct: '—', severity: '—', recommendation: '—' };
+  Object.entries(fields).forEach(([id, val]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = val;
+  });
+  const bar = document.getElementById('confidenceBar');
+  if (bar) bar.style.width = '0%';
+  const actions = document.getElementById('diseaseActions');
+  if (actions) actions.style.display = 'none';
+  const toggle = document.getElementById('recToggle');
+  if (toggle) toggle.style.display = 'none';
+  // Reset symptom text input
+  const sym = document.getElementById('symptomInput');
+  if (sym) sym.value = '';
+  // Clear global diagnosis context
+  currentDiagnosisContext = {};
+  _recFull = '';
+}
+
+// Clear image + results so user can scan a new leaf
+function clearScan() {
+  const fi = document.getElementById('leafImage');
+  if (fi) fi.value = '';
+  const prev = document.getElementById('preview');
+  if (prev) { prev.src = ''; prev.style.display = 'none'; }
+  const prevTxt = document.getElementById('prevTxt');
+  if (prevTxt) prevTxt.style.display = 'block';
+  const fields = { diseaseOutput: '—', confPct: '—', severity: '—', recommendation: '—' };
+  Object.entries(fields).forEach(([id, val]) => { const el = document.getElementById(id); if (el) el.textContent = val; });
+  const bar = document.getElementById('confidenceBar');
+  if (bar) bar.style.width = '0%';
+  document.getElementById('diseaseActions').style.display = 'none';
+  const toggle = document.getElementById('recToggle');
+  if (toggle) toggle.style.display = 'none';
+  currentDiagnosisContext = {};
+  _recFull = '';
+  // Trigger the file picker immediately
+  if (fi) fi.click();
+}
+
+function refreshProfileUI(user) {
+  const initials = user.name
+    ? user.name.split(' ').map(w => w[0]).join('').slice(0,2).toUpperCase()
+    : (user.username || '?')[0].toUpperCase();
+  const avatarSm = document.getElementById('profileAvatarSm');
+  if (avatarSm) avatarSm.textContent = initials;
+  const trigName = document.getElementById('profileTriggerName');
+  if (trigName) trigName.textContent = (user.name || user.username).split(' ')[0];
+  const dropHello = document.getElementById('dropHello');
+  if (dropHello) dropHello.textContent = 'Hello, ' + (user.name || user.username).split(' ')[0] + '! 👋';
+  const dropEmail = document.getElementById('dropEmail');
+  if (dropEmail) dropEmail.textContent = user.email || '';
+}
+
+
+
+
+function doLogout() {
+  currentUser = null;
+  localStorage.removeItem('sc360-session');
+  localStorage.removeItem('sc360-token');
+  document.getElementById('loginUser').value = '';
+  document.getElementById('loginPass').value = '';
+  // Clear detection panel and history so next user starts fresh
+  resetDetectionPanel();
+  const hist = document.getElementById('detectionHistory');
+  if (hist) hist.innerHTML = '<span style="font-size:.78rem;color:var(--muted2);">No detections yet.</span>';
+  clearAuthErrors();
+  showToast('Signed out successfully.', 'ok');
+  setTimeout(() => showScreen('login'), 400);
+}
+
+
+
+
+function checkPwd(v) {
+  const bar = document.getElementById('pwdBar'); const lbl = document.getElementById('pwdLabel');
+  let s = 0;
+  if (v.length >= 6) s++; if (v.length >= 10) s++;
+  if (/[A-Z]/.test(v)) s++; if (/[0-9]/.test(v)) s++; if (/[^A-Za-z0-9]/.test(v)) s++;
+  const pcts = ['0%','20%','40%','65%','85%','100%'];
+  const cols = ['','#e05555','#c9a84c','#7ecfe0','#6ecb63','#6ecb63'];
+  const lbls = ['Enter a password','Too weak','Weak','Fair','Strong','Very strong'];
+  bar.style.width = pcts[s]; bar.style.background = cols[s]; lbl.textContent = lbls[s];
+}
+
+function toggleAuthTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  setTheme(next);
+  const icons = document.querySelectorAll('#authThemeIcon, #authThemeIcon2');
+  icons.forEach(i => { i.className = next === 'dark' ? 'fas fa-moon' : 'fas fa-sun'; });
+}
+
+(function init() {
+  const saved = localStorage.getItem('sc360-theme');
+  if (saved) setTheme(saved);
+  const dm = document.getElementById('set-dark');
+  if (dm) dm.checked = document.documentElement.getAttribute('data-theme') === 'dark';
+  // Migrate any legacy plain-text passwords, then always show login
+  migratePasswords().then(() => showScreen('login'));
+})();
+</script>
+</body>
+</html>
